@@ -36,7 +36,7 @@
       ];
     size = 5120; # 5GB in MB
     createRootFS = ''
-      disk=/dev/vda
+      disk=/dev/sda
       ${gptfdisk}/bin/sgdisk $disk \
         -n1:0:+100M -t1:ef00 -c1:esp \
         -n2:0:0 -t2:8300 -c2:root
