@@ -13,22 +13,12 @@
   writeText,
   writeScript
 }: let
+
+  puppet = import ../lib/puppet.nix { };
+
   distro = vmTools.debDistros.ubuntu2204x86_64;
   distroRepoName = "jammy";
   disk = "/dev/vda";
-
-  # Pull in fenix to be able to build statically-linked Rust binaries with musl:
-  fenix = import (builtins.fetchGit {
-    url = "https://github.com/nix-community/fenix.git";
-    ref = "refs/heads/main";
-    rev = "0900ff903f376cc822ca637fef58c1ca4f44fab5";
-  }) { };
-
-  treadmillSrc = builtins.fetchGit {
-    url = "https://github.com/treadmill-tb/treadmill.git";
-    ref = "main";
-    rev = "a22a7af0440d6a71606bddbf61bbed159f540e9f";
-  };
 
   rustupInit = builtins.fetchurl {
     # TODO: re-host on mirror because version changes ...
@@ -36,38 +26,8 @@
     sha256 = "sha256:0vgm43wl33apxxyvip85nkmi9fqx1m6d02djhf4p00p9jdlwxvka";
   };
 
-  expandrootScript = writeScript "expandroot.sh" ''
-    #!/bin/bash
-    set -e -x
-
-    ROOTDEV="$(findmnt -n -o SOURCE /)"
-    ROOTDISK="/dev/$(lsblk -ndo pkname "$ROOTDEV")"
-    ROOTPART="$(echo "$ROOTDEV" | sed -E 's|^/dev/[a-z]+([0-9]+).*|\1|')"
-
-    echo "Expanding partition $ROOTPART of device $ROOTDISK using growpart..." >&2
-    growpart -u force "$ROOTDISK" "$ROOTPART" || true # this fails if part can't be grown
-
-    echo "Resizing root file system on $ROOTDEV to partition size..." >&2
-    resize2fs "$ROOTDEV" # doesn't fail if nothing to do
-
-    echo "Successfully expanded root disk!" >&2
-  '';
-
-  puppetBuilder = src: rustPlatform': target: rustPlatform'.buildRustPackage {
-    pname = "treadmill-puppet";
-    version = "0.0.1";
-
-    inherit src;
-    buildAndTestSubdir = "puppet";
-
-    cargoLock.lockFile = "${src}/Cargo.lock";
-    cargoLock.outputHashes."inquire-0.7.5" = "sha256-iEdsjq4IYYl6QoJmDkPQS5bJJvPG3sehDygefAOhTrY=";
-
-    inherit target;
-  };
-
   puppetx8664Musl = src: let
-    rust = fenix.combine (with fenix; [
+    rust = puppet.fenix.combine (with puppet.fenix; [
       stable.rustc
       stable.cargo
       targets.x86_64-unknown-linux-musl.stable.rust-std
@@ -77,7 +37,7 @@
       cargo = rust;
     };
   in
-    puppetBuilder src rustPlatform "x86_64-unknown-linux-musl";
+    puppet.puppetBuilder src rustPlatform "x86_64-unknown-linux-musl";
 
   ubuntuImage = vmTools.makeImageFromDebDist {
     inherit (distro) name fullName urlPrefix packagesLists;
@@ -163,14 +123,14 @@
 
       # Copy the treadmill puppet binary into the root file system:
       mkdir -p /mnt/opt/
-      cp ${puppetx8664Musl treadmillSrc}/bin/tml-puppet /mnt/opt/tml-puppet
+      cp ${puppetx8664Musl puppet.treadmillSrc}/bin/tml-puppet /mnt/opt/tml-puppet
 
       # Copy rustup-init binary and the rustup-init config into the image
       cp ${rustupInit} /mnt/opt/rustup-init
       chmod +x /mnt/opt/rustup-init
 
       # Copy the expandroot script:
-      cp ${expandrootScript} /mnt/opt/expandroot
+      cp ${../lib/expandroot.sh} /mnt/opt/expandroot
       chmod +x /mnt/opt/expandroot
 
       chroot /mnt /bin/bash -exuo pipefail <<CHROOT
