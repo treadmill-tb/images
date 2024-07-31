@@ -131,16 +131,16 @@
 
         # Create the image-specific manifest file
         ${coreutils}/bin/cat > $out/dev-image-store/image_manifest.toml << EOF
-        manifest_version = "0.0"
+        manifest_version = 0
         manifest_extensions = [ "org.tockos.treadmill.manifest-ext.base" ]
 
         "org.tockos.treadmill.manifest-ext.base.label" = "Ubuntu 20.04 base installation"
         "org.tockos.treadmill.manifest-ext.base.revision" = 0
-        "org.tockos.treadmill.manifest-ext.base.description" = '''
+        "org.tockos.treadmill.manifest-ext.base.description" = ''''
         Base Ubuntu 20.04 installation, without any customizations.
         Minimal packages selected, DHCP network configuration.
         Credentials: root / root
-        '''
+        ''''
 
         ["org.tockos.treadmill.manifest-ext.base.attrs"]
         "org.tockos.treadmill.image.qemu_layered_v0.head" = "layer-0"
