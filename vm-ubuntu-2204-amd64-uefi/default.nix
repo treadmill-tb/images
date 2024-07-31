@@ -9,24 +9,63 @@
   coreutils,
   tree,
   bash,
+  rustPlatform,
+  fetchFromGitHub,
+  openssl,
+  pkg-config,
 }: let
   distro = vmTools.debDistros.ubuntu2204x86_64;
   distroRepoName = "jammy";
   disk = "/dev/vda";
 
+  treadmillSource = fetchFromGitHub {
+    owner = "treadmill-tb";
+    repo = "treadmill";
+    rev = "main";
+    sha256 = "sha256-tbp91nZPWMppmgZsRWI4BEkPa2spOA4TqUhTNhmccyA=";
+  };
+
+  treadmillPuppet = rustPlatform.buildRustPackage {
+    pname = "tml-puppet";
+    version = "0.1.0";
+
+    src = treadmillSource;
+
+    cargoLock = {
+      lockFile = "${treadmillSource}/Cargo.lock";
+      outputHashes = {
+        "inquire-0.7.5" = "sha256-Vl/7s8rl2FUOtPVZEkY7ow5K0B8FpFKGpfH3nHjTq0A=";
+      };
+    };
+
+    buildInputs = [openssl];
+    nativeBuildInputs = [pkg-config];
+
+    buildPhase = ''
+      cargo build --release --package tml-puppet
+    '';
+
+    installPhase = ''
+      mkdir -p $out/bin
+      cp target/release/tml-puppet $out/bin/
+    '';
+  };
+
   ubuntuImage = vmTools.makeImageFromDebDist {
     inherit (distro) name fullName urlPrefix packagesLists;
-    packages = (
-      lib.filter (p:
-        !lib.elem p [
-          "g++"
-          "make"
-          "dpkg-dev"
-          "pkg-config"
-          "sysvinit"
-        ])
+    packages =
+      (
+        lib.filter (p:
+          !lib.elem p [
+            "g++"
+            "make"
+            "dpkg-dev"
+            "pkg-config"
+            "sysvinit"
+          ])
         distro.packages
-    ) ++ [
+      )
+      ++ [
         "systemd"
         "init-system-helpers"
         "systemd-sysv"
@@ -69,8 +108,13 @@
       ${util-linux}/bin/mount -o bind /dev /mnt/dev
       ${util-linux}/bin/mount -o bind /dev/pts /mnt/dev/pts
 
+      # Copy the Treadmill Puppet binary
+      mkdir -p /mnt/usr/local/bin
+      cp ${treadmillPuppet}/bin/tml-puppet /mnt/usr/local/bin/
+      chmod +x /mnt/usr/local/bin/tml-puppet
+
       chroot /mnt /bin/bash -exuo pipefail <<CHROOT
-      export PATH=/usr/sbin:/usr/bin:/sbin:/bin
+      export PATH=/usr/sbin:/usr/bin:/sbin:/bin:/usr/local/bin
       find /usr/sbin/
       find /usr/bin/
       find /sbin/
@@ -132,6 +176,21 @@
       SERVICE
       systemctl enable generate-host-keys
 
+      # Set up Treadmill Puppet service
+      cat > /etc/systemd/system/treadmill-puppet.service <<SERVICE
+      [Unit]
+      Description=Treadmill Puppet Agent
+      After=network.target
+
+      [Service]
+      ExecStart=/usr/local/bin/tml-puppet --transport tcp --tcp-control-socket-addr 127.0.0.1:12345
+      Restart=always
+
+      [Install]
+      WantedBy=multi-user.target
+      SERVICE
+      systemctl enable treadmill-puppet
+
       # Set root password (you might want to change this)
       echo root:root | chpasswd
       # Add your public SSH key here
@@ -149,7 +208,6 @@
       ${util-linux}/bin/umount /mnt/boot/efi
     '';
   };
-
 in
   derivation {
     name = "treadmill-store";
@@ -177,10 +235,10 @@ in
         manifest_version = 0
         manifest_extensions = [ "org.tockos.treadmill.manifest-ext.base" ]
 
-        "org.tockos.treadmill.manifest-ext.base.label" = "Ubuntu 20.04 base installation"
+        "org.tockos.treadmill.manifest-ext.base.label" = "Ubuntu 22.04 base installation with Treadmill Puppet"
         "org.tockos.treadmill.manifest-ext.base.revision" = 0
         "org.tockos.treadmill.manifest-ext.base.description" = ''''
-        Base Ubuntu 20.04 installation, without any customizations.
+        Base Ubuntu 22.04 installation, with Treadmill Puppet agent.
         Minimal packages selected, DHCP network configuration.
         Credentials: root / root
         ''''
