@@ -24,19 +24,14 @@
         BLOB_HASH="$(${dasel}/bin/dasel -f "$MANIFEST_PATH" -r toml -w - '.org\.tockos\.treadmill\.manifest-ext\.base\.blobs.'"$HEAD_BLOB"'.org\.tockos\.treadmill\.manifest-ext\.base\.sha256-digest')"
         BLOB_PATH="${image}/blobs/''${BLOB_HASH:0:2}/''${BLOB_HASH:2:2}/''${BLOB_HASH:4:2}/$BLOB_HASH"
 
-
         # The below variable is magically picked up and exposed to the VM.
         diskImage=disk.qcow2
         echo "Creating $diskImage based on $BLOB_PATH"
         ${pkgs.qemu}/bin/qemu-img create -b "$BLOB_PATH" -F qcow2 -f qcow2 "$diskImage"
-
       '';
       postVM = ''
-        #   echo compressing VM image...
-        #   ${pkgs.vmTools.qemu}/bin/qemu-img convert -c $diskImage -O qcow2 $out/baseline.qcow2
-          mkdir -p $out
-          cp $diskImage $out/overlay.qcow2
-
+        mkdir -p $out
+        cp $diskImage $out/overlay.qcow2
       '';
       buildInputs = [];
     }
@@ -53,7 +48,7 @@
       After=network.target
 
       [Service]
-      ExecStartPre=/bin/bash -c 'export REPO_URL=\$(cat /run/tml/repo-url) && export TOKEN=\$(cat /run/tml/ghrunner-token) && export JOB_ID=\$(cat /run/tml/job-id) && /mnt/opt/actions-runner/config.sh --url \$REPO_URL --token \$TOKEN --name tml-ghactionsrunner-\$JOB_ID --labels tml-ghactionsrunner-\$JOB_ID --unattended --ephemeral'
+      ExecStartPre=/bin/bash -c 'export REPO_URL=\$(cat /run/tml/repo-url) && export TOKEN=\$(cat /run/tml/ghrunner-token) && export JOB_ID=\$(cat /run/tml/job-id) && opt/actions-runner/config.sh --url \$REPO_URL --token \$TOKEN --name tml-ghactionsrunner-\$JOB_ID --labels tml-ghactionsrunner-\$JOB_ID --unattended --ephemeral'
       ExecStart=/opt/actions-runner/run.sh
       Restart=on-failure
       User=root
@@ -62,7 +57,6 @@
       [Install]
       WantedBy=multi-user.target
       EOF
-
     ''
   );
 in
@@ -94,23 +88,18 @@ in
 
       "org.tockos.treadmill.manifest-ext.base.label" = "Ubuntu 22.04 with GitHub Actions Runner"
       "org.tockos.treadmill.manifest-ext.base.revision" = 1
-      "org.tockos.treadmill.manifest-ext.base.description" = ''''
-      Base Ubuntu 22.04 with added GitHub Actions Runner service and scripts.
-      ''''
+      "org.tockos.treadmill.manifest-ext.base.description" = "Base Ubuntu 22.04 with added GitHub Actions Runner service and scripts."
 
       ["org.tockos.treadmill.manifest-ext.base.attrs"]
       "org.tockos.treadmill.image.qemu_layered_v0.head" = "layer-0"
 
-
-      ["org.tockos.treadmill.manifest-ext.base.blobs".layer-1]
+      ["org.tockos.treadmill.manifest-ext.base.blobs"."layer-0"]
       "org.tockos.treadmill.manifest-ext.base.sha256-digest" = "$OVERLAY_BLOB_HASH"
       "org.tockos.treadmill.manifest-ext.base.size" = $(stat -c%s "$OVERLAY_BLOB_PATH")
 
-      ["org.tockos.treadmill.manifest-ext.base.blobs".layer-0."org.tockos.treadmill.manifest-ext.base.attrs"]
-      "org.tockos.treadmill.image.qemu_layered_v0.blob-virtual-size" = "5368709120"
+      ["org.tockos.treadmill.manifest-ext.base.blobs"."layer-0"."org.tockos.treadmill.manifest-ext.base.attrs"]
+      "org.tockos.treadmill.image.qemu_layered_v0.blob-virtual-size" = "10737418240"
       EOF
-
-
 
       # Calculate the SHA256 hash of the image-specific manifest file
       IMAGE_HASH=$(sha256sum $out/image_manifest.toml | cut -d' ' -f1)
@@ -119,7 +108,6 @@ in
       MANIFEST_PATH="$out/images/''${IMAGE_HASH:0:2}/''${IMAGE_HASH:2:2}/''${IMAGE_HASH:4:2}/$IMAGE_HASH"
       mkdir -p "$(dirname "$MANIFEST_PATH")"
       mv $out/image_manifest.toml "$MANIFEST_PATH"
-
-
+      echo $IMAGE_HASH > "$out/image.txt"
     '';
   }
