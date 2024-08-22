@@ -43,10 +43,11 @@
 
       cp -r ${githubRunner} /mnt/opt/gh-actions-runner
 
-      cat > "/mnt/etc/systemd/system/github-runner.service" <<EOF
+      cat > "/mnt/etc/systemd/system/gh-actions-runner.service" <<EOF
       [Unit]
       Description=GitHub Actions Runner
-      After=network.target
+      After=network.target tml-puppet.service
+      Requires=tml-puppet.service
 
       [Service]
       ExecStartPre=/bin/bash -c 'export REPO_URL=\$(cat /run/tml/parameters/gh-actions-runner-repo-url) && export TOKEN=\$(cat /run/tml/parameters/gh-actions-runner-token) && export JOB_ID=\$(cat /run/tml/job-id) && /opt/gh-actions-runner/config.sh --url \$REPO_URL --token \$TOKEN --name tml-ghactionsrunner-\$JOB_ID --labels tml-ghactionsrunner-\$JOB_ID --unattended --ephemeral'
@@ -58,6 +59,9 @@
       [Install]
       WantedBy=multi-user.target
       EOF
+
+      # Manually enable the service:
+      ln -s /etc/systemd/system/gh-actions-runner.service /mnt/etc/systemd/system/multi-user.target.wants/gh-actions-runner.service
     ''
   );
 in
