@@ -294,6 +294,8 @@
       SERVICE
 
       # Autostart the treadmill puppet daemon and always restart on exit:
+      # Type=notify: Only report as started after connected to supervisor
+      # NotifyAccess=main: Don't accept status updates from child processes
       cat > /etc/systemd/system/tml-puppet.service <<SERVICE
       [Install]
       WantedBy=multi-user.target
@@ -301,12 +303,13 @@
       After=network.target
       StartLimitIntervalSec=0
       [Service]
-      Type=simple
+      Type=notify
+      NotifyAccess=main
       ExecStartPre=/bin/mkdir -p /run/tml/parameters /home/tml/.ssh
       ExecStartPre=/usr/bin/touch /home/tml/.ssh/authorized_keys
       ExecStartPre=/bin/chmod 500 /home/tml/.ssh
       ExecStartPre=/bin/chown -R tml /home/tml/.ssh
-      ExecStart=/opt/tml-puppet --transport auto_discover --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --parameters-dir /run/tml/parameters
+      ExecStart=/opt/tml-puppet --transport auto_discover --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --parameters-dir /run/tml/parameters --job-id-file /run/tml/job-id
       Restart=always
       RestartSec=5s
       SERVICE
