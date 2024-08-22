@@ -39,8 +39,38 @@
   in
     puppet.puppetBuilder src rustPlatform "x86_64-unknown-linux-musl";
 
-  ubuntuImage = vmTools.makeImageFromDebDist {
+  ubuntuImage = vmTools.makeImageFromDebDist rec {
     inherit (distro) name fullName urlPrefix packagesLists;
+
+    # We don't want to expose a variable called "diskImage" which is defined by
+    # "createEmptyImage". This variable will be automatically exposed as a
+    # virtio-blk device to the QEMU VM and its options cannot be customized
+    # (without interpolating them into the device name, which we will _not_ do
+    # to retain a tiny bit of sanity in this whole mess).
+    #
+    # We instead use the variable "customDiskImage" to hold this path, and
+    # expose it to the VM with "discard=unmap" and "detect-zeroes=unmap", such
+    # that the fstrim command in the VM can actually free blocks allocated in
+    # the underlying QCOW2 file after installation.
+    preVM = (vmTools.createEmptyImage {
+      inherit size fullName;
+    }) + ''
+      customDiskImage="$diskImage"
+      unset diskImage
+      echo "Custom disk image: $customDiskImage"
+    '';
+
+    # For some reason, a SCSI device will be picked up by the kernel but has no
+    # node created in the devtmpfs at /dev:
+    #
+    # QEMU_OPTS = "-device virtio-scsi-pci,id=scsi0 \
+    #   -drive file=$customDiskImage,id=drive0,format=qcow2,cache=unsafe,werror=report,discard=unmap,if=none \
+    #   -device scsi-hd,drive=drive0,bus=scsi0.0";
+    #
+    # Instead, it seems that with recent versions of QEMU, discard=unmap and
+    # detect-zeroes=unmap also achieves the desired result despite using
+    # virtio-blk:
+    QEMU_OPTS = "-drive file=$customDiskImage,if=virtio,cache=unsafe,werror=report,discard=unmap,detect-zeroes=unmap";
 
     packages = (
       lib.filter (p:
@@ -107,8 +137,6 @@
     '';
 
     postInstall = ''
-      disk=/dev/vda
-
       # update-grub needs udev to detect the filesystem UUID -- without,
       # we'll get root=/dev/vda2 on the cmdline which will only work in
       # a limited set of scenarios.
@@ -244,11 +272,27 @@
 
       CHROOT
 
+      echo "Disk utilization after installation:"
+      ${coreutils}/bin/df -h
+
+      echo "Running fstrim to unmap unused but allocated blocks in the underlying image file..."
+      ${util-linux}/bin/fstrim -a -v
+
       ${util-linux}/bin/umount /mnt/dev/pts
       ${util-linux}/bin/umount /mnt/dev
       ${util-linux}/bin/umount /mnt/sys
       ${util-linux}/bin/umount /mnt/proc
       ${util-linux}/bin/umount /mnt/boot/efi
+    '';
+
+    # Compress the QCOW2 file. This does not work inplace, unfortunately:
+    postVM = ''
+      diskImage="$customDiskImage"
+      echo "Uncompressed image size: $(du -h "$diskImage")"
+      echo "Compressing image..."
+      ${vmTools.qemu}/bin/qemu-img convert -c "$diskImage" -O qcow2 "$diskImage_compressed.qcow2"
+      mv "$diskImage_compressed.qcow2" "$diskImage"
+      echo "Compressed image size: $(du -h "$diskImage")"
     '';
   };
 
