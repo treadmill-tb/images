@@ -40,7 +40,7 @@
       ${pkgs.mount}/bin/mount /dev/vda2 /mnt
       ls /mnt
 
-      cp -r ${githubRunner} /mnt/opt/actions-runner
+      cp -r ${githubRunner} /mnt/opt/gh-actions-runner
 
       cat > "/mnt/etc/systemd/system/github-runner.service" <<EOF
       [Unit]
@@ -48,11 +48,11 @@
       After=network.target
 
       [Service]
-      ExecStartPre=/bin/bash -c 'export REPO_URL=\$(cat /run/tml/repo-url) && export TOKEN=\$(cat /run/tml/ghrunner-token) && export JOB_ID=\$(cat /run/tml/job-id) && opt/actions-runner/config.sh --url \$REPO_URL --token \$TOKEN --name tml-ghactionsrunner-\$JOB_ID --labels tml-ghactionsrunner-\$JOB_ID --unattended --ephemeral'
-      ExecStart=/opt/actions-runner/run.sh
+      ExecStartPre=/bin/bash -c 'export REPO_URL=\$(cat /run/tml/parameters/gh-actions-runner-repo-url) && export TOKEN=\$(cat /run/tml/parameters/gh-actions-runner-token) && export JOB_ID=\$(cat /run/tml/job-id) && opt/gh-actions-runner/config.sh --url \$REPO_URL --token \$TOKEN --name tml-ghactionsrunner-\$JOB_ID --labels tml-ghactionsrunner-\$JOB_ID --unattended --ephemeral'
+      ExecStart=/opt/gh-actions-runner/run.sh
       Restart=on-failure
       User=root
-      WorkingDirectory=/opt/actions-runner
+      WorkingDirectory=/opt/gh-actions-runner
 
       [Install]
       WantedBy=multi-user.target
