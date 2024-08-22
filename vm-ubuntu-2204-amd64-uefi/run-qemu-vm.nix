@@ -36,6 +36,8 @@ in
       echo "Creating image overlay and OVMF_VARS in temporary directory: \$WORKDIR"
       mkdir -p "\$WORKDIR"
 
+      cp "${ovmf}/FV/OVMF_VARS.fd" "\$WORKDIR/OVMF_VARS.fd"
+      chmod u+w "\$WORKDIR/OVMF_VARS.fd"
 
       echo "Creating \$WORKDIR/disk.qcow2 based on $BLOB_PATH"
       ${pkgs.qemu}/bin/qemu-img create -b "$BLOB_PATH" -F qcow2 -f qcow2 "\$WORKDIR/disk.qcow2" 10G
