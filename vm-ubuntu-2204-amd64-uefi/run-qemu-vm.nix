@@ -1,6 +1,9 @@
-{enableKVM ? true}:
-with import <nixpkgs> {}; let
-  image = callPackage ./default.nix {};
+{ pkgs ? import <nixpkgs> {},
+  enableKVM ? true,
+  image ? pkgs.callPackage ./default.nix {},
+}:
+
+with pkgs; let
   inherit (pkgs) dasel;
   ovmf = pkgs.OVMF.fd;
 in
