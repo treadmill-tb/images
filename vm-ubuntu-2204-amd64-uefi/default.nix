@@ -11,7 +11,7 @@
   bash,
   pkgsStatic,
   writeText,
-  writeScript,
+  writeScript
 }: let
   distro = vmTools.debDistros.ubuntu2204x86_64;
   distroRepoName = "jammy";
@@ -22,7 +22,7 @@
     url = "https://github.com/nix-community/fenix.git";
     ref = "refs/heads/main";
     rev = "0900ff903f376cc822ca637fef58c1ca4f44fab5";
-  }) {};
+  }) { };
 
   treadmillSrc = builtins.fetchGit {
     url = "https://github.com/treadmill-tb/treadmill.git";
@@ -53,19 +53,18 @@
     echo "Successfully expanded root disk!" >&2
   '';
 
-  puppetBuilder = src: rustPlatform': target:
-    rustPlatform'.buildRustPackage {
-      pname = "treadmill-puppet";
-      version = "0.0.1";
+  puppetBuilder = src: rustPlatform': target: rustPlatform'.buildRustPackage {
+    pname = "treadmill-puppet";
+    version = "0.0.1";
 
-      inherit src;
-      buildAndTestSubdir = "puppet";
+    inherit src;
+    buildAndTestSubdir = "puppet";
 
-      cargoLock.lockFile = "${src}/Cargo.lock";
-      cargoLock.outputHashes."inquire-0.7.5" = "sha256-iEdsjq4IYYl6QoJmDkPQS5bJJvPG3sehDygefAOhTrY=";
+    cargoLock.lockFile = "${src}/Cargo.lock";
+    cargoLock.outputHashes."inquire-0.7.5" = "sha256-iEdsjq4IYYl6QoJmDkPQS5bJJvPG3sehDygefAOhTrY=";
 
-      inherit target;
-    };
+    inherit target;
+  };
 
   puppetx8664Musl = src: let
     rust = fenix.combine (with fenix; [
@@ -83,19 +82,17 @@
   ubuntuImage = vmTools.makeImageFromDebDist {
     inherit (distro) name fullName urlPrefix packagesLists;
 
-    packages =
-      (
-        lib.filter (p:
-          !lib.elem p [
-            "g++"
-            "make"
-            "dpkg-dev"
-            "pkg-config"
-            "sysvinit"
-          ])
+    packages = (
+      lib.filter (p:
+        !lib.elem p [
+          "g++"
+          "make"
+          "dpkg-dev"
+          "pkg-config"
+          "sysvinit"
+        ])
         distro.packages
-      )
-      ++ [
+    ) ++ [
         "systemd"
         "init-system-helpers"
         "systemd-sysv"
@@ -128,7 +125,7 @@
         "wget"
         "ping"
         "ca-certificates"
-      ];
+    ];
 
     size = 5 * 1024; # Minimum image size, 5GB
 
@@ -287,10 +284,6 @@
 
       CHROOT
 
-
-
-      ${util-linux}/bin/fstrim -a -v
-
       ${util-linux}/bin/umount /mnt/dev/pts
       ${util-linux}/bin/umount /mnt/dev
       ${util-linux}/bin/umount /mnt/sys
@@ -298,6 +291,7 @@
       ${util-linux}/bin/umount /mnt/boot/efi
     '';
   };
+
 in
   derivation {
     name = "treadmill-store";
