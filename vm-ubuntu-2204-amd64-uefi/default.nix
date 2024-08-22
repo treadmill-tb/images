@@ -226,17 +226,62 @@
       ln -s /etc/systemd/system/firstboot-expandroot.service /etc/systemd/system/multi-user.target.wants/firstboot-expandroot.service
 
       # Configure SSH
-      rm /etc/ssh/ssh_host_*
-      cat > /etc/systemd/system/generate-host-keys.service <<SERVICE
+      #
+      # Type=oneshot will ensure that ssh.service waits on this to complete
+      #
+      # WantedBy=ssh.service would prevent SSH from starting if this isn't
+      # executed, so we use WantedBy=multi-user.target (same as ssh.service)
+      rm /etc/ssh/ssh_host_*_key
+      cat > /etc/systemd/system/ssh-generate-host-keys.service <<SERVICE
       [Install]
-      WantedBy=ssh.service
+      WantedBy=multi-user.target
       [Unit]
       Before=ssh.service
+      ConditionPathExistsGlob=!/etc/ssh/ssh_host_*_key
       [Service]
-      Type=simple
-      ExecStart=dpkg-reconfigure openssh-server
+      Type=oneshot
+      ExecStart=/usr/sbin/dpkg-reconfigure openssh-server
+      RemainAfterExit=true
       SERVICE
-      systemctl enable generate-host-keys
+      systemctl enable ssh-generate-host-keys
+
+      # The above calls `dpkg-reconfigure openssh-server` on the first system
+      # boot, and delays starting the SSH server until this command completes.
+      #
+      # However, `dpkg-reconfigure openssh-server` will also try to _start_ the
+      # SSH server by running `systemctl start ssh.service`. This command will
+      # in turn block until the above `ssh-generate-host-keys.service` is
+      # finished ... which blocks on SSH starting!
+      #
+      # Thanks to the _amazingly great_ design decision to start services on
+      # installation we thus have to use a workaround here. Luckily, Debian
+      # carries ages of legacy with it. And so, the postinstall scripts of
+      # ssh.service don't directly run `systemctl`. No, instead they run a tool
+      # called `deb-systemd-invoke` from a time long past that will consult
+      # policy files written for the rc.d init system. And those policy files
+      # are seemingly still the only way to prevent Debian packages from
+      # automatically starting on installation.
+      #
+      # Hence, with this policy file in place, `dpkg-reconfigure openssh-server`
+      # can run to completion, and then systemd will happily start ssh.service
+      # afterwards. Easy! If only everything in life was that simple.
+      cat > /usr/sbin/policy-rc.d <<POLICY
+      #!/bin/bash
+      SERVICE_NAME="\\\$(ps -o command= --ppid \\\$PPID | cut -d ' ' -f 3 )"
+      echo "Filtering SSH services for dpkg maintscript-triggered restarts: \\\$SERVICE_NAME" >&2
+      if [[ "\\\$SERVICE_NAME" == "ssh" ]] \
+          || [[ "\\\$SERVICE_NAME" == "ssh.service" ]] \
+          || [[ "\\\$SERVICE_NAME" == "rescue-ssh.service" ]]; then
+        exit 101
+      fi
+      exit 0
+      POLICY
+      chmod a+rx /usr/sbin/policy-rc.d
+
+      # As the above causes SSH to no longer be enabled on install, let's
+      # enable it here for good measure (it should already be enabled by the
+      # previous implicit invocation of `dpkg-reconfigure`):
+      systemctl enable ssh.service
 
       # Create treadmill user and enable password-less sudo and autologin
       useradd -m -u 1000 -s /bin/bash tml
