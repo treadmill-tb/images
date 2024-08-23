@@ -67,7 +67,7 @@
       [Unit]
       Description=GitHub Actions Runner
       After=network.target tml-puppet.service
-      Requires=tml-puppet.service
+      Wants=tml-puppet.service
 
       [Service]
       ExecStartPre=/bin/bash -Eexuo pipefail -c '${lib.concatStringsSep " && " [
