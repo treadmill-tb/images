@@ -119,7 +119,6 @@ in
     installPhase = ''
       mkdir -p $out/images
       mkdir -p $out/blobs
-      cp -r ${overlayedImage.backingImage}/images/* $out/images
       cp -r ${overlayedImage.backingImage}/blobs/* $out/blobs
 
       # Locate the image manifest within the store expression:
@@ -132,6 +131,7 @@ in
 
       # Retrieve the head blob's SHA-256 digest:
       BACKING_BLOB_HASH="$(${dasel}/bin/dasel -f "$BACKING_MANIFEST_PATH" -r toml -w - '.org\.tockos\.treadmill\.manifest-ext\.base\.blobs.'"$BACKING_HEAD_BLOB"'.org\.tockos\.treadmill\.manifest-ext\.base\.sha256-digest')"
+      BACKING_BLOB_VIRTUAL_SIZE="$(${dasel}/bin/dasel -f "$BACKING_MANIFEST_PATH" -r toml -w - '.org\.tockos\.treadmill\.manifest-ext\.base\.blobs.'"$BACKING_HEAD_BLOB"'.org\.tockos\.treadmill\.manifest-ext\.base\.attrs.org\.tockos\.treadmill\.image\.qemu_layered_v0\.blob-virtual-size')"
       BACKING_BLOB_PATH="../../../''${BACKING_BLOB_HASH:0:2}/''${BACKING_BLOB_HASH:2:2}/''${BACKING_BLOB_HASH:4:2}/$BACKING_BLOB_HASH"
 
       OVERLAY_BLOB_HASH=$(sha256sum "${overlayedImage}/overlay.qcow2" | cut -d' ' -f1)
@@ -145,26 +145,6 @@ in
       echo "Creating new image manifest..."
 
       cat "$BACKING_MANIFEST_PATH" > "$TMPDIR/backing_manifest.toml"
-
-      cat > "$out/new_image_manifest.toml" <<EOF
-      manifest_version = 0
-      manifest_extensions = [ "org.tockos.treadmill.manifest-ext.base" ]
-
-      "org.tockos.treadmill.manifest-ext.base.label" = "Ubuntu 22.04 with GitHub Actions Runner"
-      "org.tockos.treadmill.manifest-ext.base.revision" = 1
-      "org.tockos.treadmill.manifest-ext.base.description" = "Base Ubuntu 22.04 with added GitHub Actions Runner service and scripts."
-
-      ["org.tockos.treadmill.manifest-ext.base.attrs"]
-      "org.tockos.treadmill.image.qemu_layered_v0.head" = "layer-0"
-
-      ["org.tockos.treadmill.manifest-ext.base.blobs"."layer-0"]
-      "org.tockos.treadmill.manifest-ext.base.sha256-digest" = "$OVERLAY_BLOB_HASH"
-      "org.tockos.treadmill.manifest-ext.base.size" = $(stat -c%s "$OVERLAY_BLOB_PATH")
-
-      ["org.tockos.treadmill.manifest-ext.base.blobs"."layer-0"."org.tockos.treadmill.manifest-ext.base.attrs"]
-      "org.tockos.treadmill.image.qemu_layered_v0.blob-virtual-size" = "10737418240"
-      EOF
-
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "Ubuntu 22.04 with GitHub Actions Runner" 'org\.tockos\.treadmill\.manifest-ext\.base.label'
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v 1 'org\.tockos\.treadmill\.manifest-ext\.base.revision'
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "Base Ubuntu 22.04 with added GitHub Actions Runner service and scripts." 'org\.tockos\.treadmill\.manifest-ext\.base.description'
@@ -177,8 +157,7 @@ in
 
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "$OVERLAY_BLOB_HASH" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.sha256-digest"
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t int -v "$(stat -c%s "$OVERLAY_BLOB_PATH")" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.size"
-      ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "10737418240" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.attrs.org\.tockos\.treadmill\.image\.qemu_layered_v0\.blob-virtual-size"
-
+      ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "$BACKING_BLOB_VIRTUAL_SIZE" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.attrs.org\.tockos\.treadmill\.image\.qemu_layered_v0\.blob-virtual-size"
 
       IMAGE_HASH=$(sha256sum "$TMPDIR/backing_manifest.toml" | cut -d' ' -f1)
 
