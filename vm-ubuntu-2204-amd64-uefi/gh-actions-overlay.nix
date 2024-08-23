@@ -71,7 +71,18 @@
 
       [Service]
       ExecStartPre=/bin/bash -Eexuo pipefail -c '${lib.concatStringsSep " && " [
+        # Services are supposed to use the `runsvc.sh` script, which will be
+        # created by another setup script in the repository. We simply copy it
+        # manually here.
+        #
+        # This script is not actually used right now; see below.
+        "cp /opt/gh-actions-runner/bin/runsvc.sh /opt/gh-actions-runner/runsvc.sh"
+        "chown tml:tml /opt/gh-actions-runner/runsvc.sh"
+        # Avoid re-configuring if the runner was already configured:
         "if [ -f /opt/gh-actions-runner/.credentials ]; then exit 0; fi"
+        # Avoid configuring if we have a JIT configuration:
+        "if [ -f /run/tml/parameters/gh-actions-runner-encoded-jit-config ]; then exit 0; fi"
+        # Read the configuration parameters and run the configuration script:
         "REPO_URL=\\\$(cat /run/tml/parameters/gh-actions-runner-repo-url)"
         "RUNNER_TOKEN=\\\$(cat /run/tml/parameters/gh-actions-runner-token)"
         "JOB_ID=\\\$(cat /run/tml/job-id)"
@@ -84,13 +95,26 @@
           "--unattended"
           "--ephemeral"
         ])
-        "cp /opt/gh-actions-runner/bin/runsvc.sh /opt/gh-actions-runner/runsvc.sh"
-        "chown tml:tml /opt/gh-actions-runner/runsvc.sh"
       ]}'
-      ExecStart=/opt/gh-actions-runner/runsvc.sh
+      ExecStart=/bin/bash -Eeuo pipefail -c '\
+        if [ -f /run/tml/parameters/gh-actions-runner-encoded-jit-config ]; then \
+          ${""
+            # We should use runsvc.sh here, but it doesn't support the jitconfig
+            # option. For now, run.sh seems to work fine as well.
+           } \
+          echo "Starting GitHub Actions Runner from JIT config"; \
+          /opt/gh-actions-runner/run.sh --jitconfig \$(cat /run/tml/parameters/gh-actions-runner-encoded-jit-config); \
+        else \
+          ${""
+            # To have a compatible "KillSignal" to the above, also use run.sh:
+           } \
+          echo "Starting preconfigured GitHub Actions Runner"; \
+          /opt/gh-actions-runner/run.sh; \
+        fi'
       Restart=on-failure
-      KillMode=process
-      KillSignal=SIGTERM
+      # KillMode=process, for runsvc.sh
+      # KillSignal=SIGTERM, for runsvc.sh
+      KillSignal=SIGINT # for run.sh
       TimeoutStopSec=5m
       User=tml
       Group=tml
