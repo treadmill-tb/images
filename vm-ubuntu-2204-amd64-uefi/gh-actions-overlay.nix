@@ -113,8 +113,7 @@
   );
 in
   pkgs.stdenv.mkDerivation {
-    pname = "new-image-store";
-    version = "1.0";
+    name = "image-store";
     buildInputs = [overlayedImage];
     src = ./.;
     installPhase = ''
