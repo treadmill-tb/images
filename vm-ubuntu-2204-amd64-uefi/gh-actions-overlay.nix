@@ -73,7 +73,7 @@
       ExecStartPre=/bin/bash -Eexuo pipefail -c '${lib.concatStringsSep " && " [
         "if [ -f /opt/gh-actions-runner/.credentials ]; then exit 0; fi"
         "REPO_URL=\\\$(cat /run/tml/parameters/gh-actions-runner-repo-url)"
-        "RUNNER_TOKEN=\\\$(cat /run/tml/parameters/gh-actions-runner-runner-token)"
+        "RUNNER_TOKEN=\\\$(cat /run/tml/parameters/gh-actions-runner-token)"
         "JOB_ID=\\\$(cat /run/tml/job-id)"
         (lib.concatStringsSep " " [
           "/opt/gh-actions-runner/config.sh"
