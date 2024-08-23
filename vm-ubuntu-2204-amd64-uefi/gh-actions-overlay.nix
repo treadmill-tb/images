@@ -4,8 +4,26 @@
   image ? pkgs.callPackage ./default.nix {},
   ...
 }: let
-  inherit (pkgs) callPackage dasel;
-  githubRunner = import ./github-runner.nix {inherit pkgs;};
+  inherit (pkgs) callPackage dasel lib;
+
+  ghActionsRunnerVersion = "2.319.1";
+
+  ghActionsRunnerHashes = {
+    "x64" = "sha256-P277dIihg+KR/Cxih24Uye5zKGQXNzT6zIWhv7F0RGQ=";
+  };
+
+  ghActionsRunnerArch = "x64";
+
+  ghActionsRunnerArchive = builtins.fetchurl {
+    url = "https://github.com/actions/runner/releases/download/v${ghActionsRunnerVersion}/actions-runner-linux-${ghActionsRunnerArch}-${ghActionsRunnerVersion}.tar.gz";
+    sha256 = ghActionsRunnerHashes."${ghActionsRunnerArch}";
+  };
+
+  ghActionsRunnerUnpacked = pkgs.runCommand "gh-actions-runner-linux-${ghActionsRunnerArch}-${ghActionsRunnerArch}-unpack.sh" {} ''
+    mkdir -p $out
+    ${pkgs.gnutar}/bin/tar -xzf ${ghActionsRunnerArchive} -C $out
+  '';
+
   overlayedImage = pkgs.vmTools.runInLinuxVM (
     pkgs.runCommand "nixos-sun-baseline-image"
     {
@@ -41,7 +59,9 @@
       ${pkgs.mount}/bin/mount /dev/vda2 /mnt
       ls /mnt
 
-      cp -r ${githubRunner} /mnt/opt/gh-actions-runner
+      cp -r ${ghActionsRunnerUnpacked} /mnt/opt/gh-actions-runner
+      chown 1000:1000 -R /mnt/opt/gh-actions-runner
+      chmod u+w -R /mnt/opt/gh-actions-runner
 
       cat > "/mnt/etc/systemd/system/gh-actions-runner.service" <<EOF
       [Unit]
@@ -50,10 +70,30 @@
       Requires=tml-puppet.service
 
       [Service]
-      ExecStartPre=/bin/bash -c 'export REPO_URL=\$(cat /run/tml/parameters/gh-actions-runner-repo-url) && export TOKEN=\$(cat /run/tml/parameters/gh-actions-runner-token) && export JOB_ID=\$(cat /run/tml/job-id) && /opt/gh-actions-runner/config.sh --url \$REPO_URL --token \$TOKEN --name tml-ghactionsrunner-\$JOB_ID --labels tml-ghactionsrunner-\$JOB_ID --unattended --ephemeral'
-      ExecStart=/opt/gh-actions-runner/run.sh
+      ExecStartPre=/bin/bash -Eexuo pipefail -c '${lib.concatStringsSep " && " [
+        "if [ -f /opt/gh-actions-runner/.credentials ]; then exit 0; fi"
+        "REPO_URL=\\\$(cat /run/tml/parameters/gh-actions-runner-repo-url)"
+        "RUNNER_TOKEN=\\\$(cat /run/tml/parameters/gh-actions-runner-runner-token)"
+        "JOB_ID=\\\$(cat /run/tml/job-id)"
+        (lib.concatStringsSep " " [
+          "/opt/gh-actions-runner/config.sh"
+          "--url \\\$REPO_URL"
+          "--token \\\$RUNNER_TOKEN"
+          "--name tml-gh-actions-runner-\\\$JOB_ID"
+          "--labels tml-gh-actions-runner-\\\$JOB_ID"
+          "--unattended"
+          "--ephemeral"
+        ])
+        "cp /opt/gh-actions-runner/bin/runsvc.sh /opt/gh-actions-runner/runsvc.sh"
+        "chown tml:tml /opt/gh-actions-runner/runsvc.sh"
+      ]}'
+      ExecStart=/opt/gh-actions-runner/runsvc.sh
       Restart=on-failure
-      User=root
+      KillMode=process
+      KillSignal=SIGTERM
+      TimeoutStopSec
+      User=tml
+      Group=tml
       WorkingDirectory=/opt/gh-actions-runner
 
       [Install]
@@ -62,6 +102,13 @@
 
       # Manually enable the service:
       ln -s /etc/systemd/system/gh-actions-runner.service /mnt/etc/systemd/system/multi-user.target.wants/gh-actions-runner.service
+
+      cat > /mnt/opt/journal-login-shell <<SCRIPT
+      #!/bin/bash
+      exec /bin/bash --init-file <(echo 'sudo journalctl -f; . "\$HOME/.bashrc"')
+      SCRIPT
+      chmod +x /mnt/opt/journal-login-shell
+      sed -i -E 's|^(tml:.*):/bin/bash$|\1:/opt/journal-login-shell|' /mnt/etc/passwd
     ''
   );
 in
