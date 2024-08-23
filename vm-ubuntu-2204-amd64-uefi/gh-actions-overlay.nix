@@ -182,6 +182,7 @@ in
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "$OVERLAY_BLOB_HASH" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.sha256-digest"
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t int -v "$(stat -c%s "$OVERLAY_BLOB_PATH")" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.size"
       ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "$BACKING_BLOB_VIRTUAL_SIZE" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.attrs.org\.tockos\.treadmill\.image\.qemu_layered_v0\.blob-virtual-size"
+      ${dasel}/bin/dasel -f $TMPDIR/backing_manifest.toml put -r toml -t string -v "$BACKING_HEAD_BLOB" "org\.tockos\.treadmill\.manifest-ext\.base\.blobs.$OVERLAY_HEAD_BLOB.org\.tockos\.treadmill\.manifest-ext\.base\.attrs.org\.tockos\.treadmill\.image\.qemu_layered_v0\.lower"
 
       IMAGE_HASH=$(sha256sum "$TMPDIR/backing_manifest.toml" | cut -d' ' -f1)
 
