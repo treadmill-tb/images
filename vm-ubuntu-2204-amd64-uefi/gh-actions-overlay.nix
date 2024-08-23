@@ -91,7 +91,7 @@
       Restart=on-failure
       KillMode=process
       KillSignal=SIGTERM
-      TimeoutStopSec
+      TimeoutStopSec=5m
       User=tml
       Group=tml
       WorkingDirectory=/opt/gh-actions-runner
