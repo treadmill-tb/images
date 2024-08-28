@@ -285,6 +285,8 @@
 
       # Create treadmill user and enable password-less sudo and autologin
       useradd -m -u 1000 -s /bin/bash tml
+      usermod -a -G plugdev tml
+      usermod -a -G tty tml
       echo "tml ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/010_tml-nopasswd
       mkdir -p /etc/systemd/system/serial-getty@ttyS0.service.d/
       cat > /etc/systemd/system/serial-getty@ttyS0.service.d/override.conf <<SERVICE
@@ -292,6 +294,11 @@
       ExecStart=
       ExecStart=-/sbin/agetty --autologin tml --noclear %I $TERM
       SERVICE
+
+      # Give access to all USB devices
+      cat > /etc/udev/rules.d/99-tml.rules <<RULES
+      SUBSYSTEM=="usb", GROUP="plugdev", TAG+="uaccess"
+      RULES
 
       # Autostart the treadmill puppet daemon and always restart on exit:
       # Type=notify: Only report as started after connected to supervisor

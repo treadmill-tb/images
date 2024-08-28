@@ -133,6 +133,8 @@ let
 
     # Create a treadmill user in the image and give it password-less sudo:
     useradd -m -u 1000 -s /bin/bash tml
+    usermod -a -G plugdev tml
+    usermod -a -G tty tml
     mv /etc/sudoers.d/010_pi-nopasswd /etc/sudoers.d/010_tml-nopasswd
     sed -i 's/pi/tml/g' /etc/sudoers.d/010_tml-nopasswd
 
