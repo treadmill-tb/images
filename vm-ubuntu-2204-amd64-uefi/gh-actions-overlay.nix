@@ -96,6 +96,7 @@
           "--ephemeral"
         ])
       ]}'
+      ExecStartPre=-+/bin/bash /run/tml/parameters/gh-actions-runner-exec-start-pre-sh
       ExecStart=/bin/bash -Eeuo pipefail -c '\
         if [ -f /run/tml/parameters/gh-actions-runner-encoded-jit-config ]; then \
           ${""
@@ -119,6 +120,7 @@
       User=tml
       Group=tml
       WorkingDirectory=/opt/gh-actions-runner
+      ExecStopPost=-+/bin/bash /run/tml/parameters/gh-actions-runner-exec-stop-post-sh
 
       [Install]
       WantedBy=multi-user.target
