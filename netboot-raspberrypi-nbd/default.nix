@@ -319,7 +319,7 @@ in
         "org.tockos.treadmill.manifest-ext.base.size" = $(${coreutils}/bin/stat -c%s ${rootPartQCOW2})
 
         ["org.tockos.treadmill.manifest-ext.base.blobs".layer-0-root."org.tockos.treadmill.manifest-ext.base.attrs"]
-        "org.tockos.treadmill.image.nbd_qcow2_layered_v0.blob-virtual-size" = "TODO"
+        "org.tockos.treadmill.image.nbd_qcow2_layered_v0.blob-virtual-size" = "2092957696"
         EOF
 
         # Calculate the SHA256 hash of the image-specific manifest file
