@@ -25,7 +25,7 @@
   '';
 
   overlayedImage = pkgs.vmTools.runInLinuxVM (
-    pkgs.runCommand "nixos-sun-baseline-image"
+    pkgs.runCommand "install-gh-actions-runner-vm"
     {
       memSize = 768;
       preVM = ''
