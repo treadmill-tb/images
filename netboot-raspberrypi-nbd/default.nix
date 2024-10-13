@@ -152,7 +152,7 @@ let
 
     # Move the puppet daemon to /opt, autostart and always restart on exit:
     mkdir -p /opt
-    mv /customize-image/tml-puppet /opt/tml-puppet
+    mv /customize-image/tml-puppet /usr/local/bin/tml-puppet
     # Type=notify: Only report as started after connected to supervisor
     # NotifyAccess=main: Don't accept status updates from child processes
     cat > /etc/systemd/system/tml-puppet.service <<SERVICE
@@ -168,11 +168,23 @@ let
     ExecStartPre=/usr/bin/touch /home/tml/.ssh/authorized_keys
     ExecStartPre=/bin/chmod 500 /home/tml/.ssh
     ExecStartPre=/bin/chown -R tml /home/tml/.ssh
-    ExecStart=/bin/bash -c '/opt/tml-puppet --transport tcp --tcp-control-socket-addr "\$(ip route show 0.0.0.0/0 | cut -d" " -f3):3859" --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --parameters-dir /run/tml/parameters --job-id-file /run/tml/job-id'
+    ExecStart=/bin/bash -c '/usr/local/bin/tml-puppet daemon --transport tcp --tcp-control-socket-addr "\$(ip route show 0.0.0.0/0 | cut -d" " -f3):3859" --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --parameters-dir /run/tml/parameters --job-id-file /run/tml/job-id'
     Restart=always
     RestartSec=5s
     SERVICE
     ln -s /etc/systemd/system/tml-puppet.service /etc/systemd/system/multi-user.target.wants/tml-puppet.service
+
+    # Allow the puppet daemon to bind to its D-Bus service
+    cat > /etc/dbus-1/system.d/ci.treadmill.Puppet.conf <<DBUSCONF
+    <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+    <busconfig>
+      <policy context="default">
+        <allow own="ci.treadmill.Puppet"/>
+        <allow send_destination="ci.treadmill.Puppet"/>
+        <allow receive_sender="ci.treadmill.Puppet"/>
+      </policy>
+    </busconfig>
+    DBUSCONF
 
     # Install rustup as the tml user:
     chmod +x /customize-image/rustup-init

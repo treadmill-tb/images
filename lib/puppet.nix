@@ -10,7 +10,7 @@
   treadmillSrc = builtins.fetchGit {
     url = "https://github.com/treadmill-tb/treadmill.git";
     ref = "main";
-    rev = "86f7ec7066ee0832a35b57774902200f91f82632";
+    rev = "b8e025ae1ca6407c61080d071587b619cde6818d";
   };
 
   puppetBuilder = src: rustPlatform': target: rustPlatform'.buildRustPackage {

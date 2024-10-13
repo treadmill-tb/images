@@ -115,6 +115,7 @@
         "wget"
         "ping"
         "ca-certificates"
+        "dbus"
     ];
 
     size = 5 * 1024; # Minimum image size, 5GB
@@ -150,10 +151,11 @@
       ${util-linux}/bin/mount -o bind /dev/pts /mnt/dev/pts
 
       # Copy the treadmill puppet binary into the root file system:
-      mkdir -p /mnt/opt/
-      cp ${puppetx8664Musl puppet.treadmillSrc}/bin/tml-puppet /mnt/opt/tml-puppet
+      mkdir -p /mnt/usr/local/bin/
+      cp ${puppetx8664Musl puppet.treadmillSrc}/bin/tml-puppet /mnt/usr/local/bin/tml-puppet
 
       # Copy rustup-init binary and the rustup-init config into the image
+      mkdir -p /mnt/opt/
       cp ${rustupInit} /mnt/opt/rustup-init
       chmod +x /mnt/opt/rustup-init
 
@@ -316,11 +318,23 @@
       ExecStartPre=/usr/bin/touch /home/tml/.ssh/authorized_keys
       ExecStartPre=/bin/chmod 500 /home/tml/.ssh
       ExecStartPre=/bin/chown -R tml /home/tml/.ssh
-      ExecStart=/opt/tml-puppet --transport auto_discover --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --parameters-dir /run/tml/parameters --job-id-file /run/tml/job-id
+      ExecStart=/usr/local/bin/tml-puppet daemon --transport auto_discover --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --parameters-dir /run/tml/parameters --job-id-file /run/tml/job-id
       Restart=always
       RestartSec=5s
       SERVICE
       ln -s /etc/systemd/system/tml-puppet.service /etc/systemd/system/multi-user.target.wants/tml-puppet.service
+
+      # Allow the puppet daemon to bind to its D-Bus service
+      cat > /etc/dbus-1/system.d/ci.treadmill.Puppet.conf <<DBUSCONF
+      <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+      <busconfig>
+        <policy context="default">
+          <allow own="ci.treadmill.Puppet"/>
+          <allow send_destination="ci.treadmill.Puppet"/>
+          <allow receive_sender="ci.treadmill.Puppet"/>
+        </policy>
+      </busconfig>
+      DBUSCONF
 
       # Install rustup-init as the tml user:
       sudo -u tml /opt/rustup-init -y --default-toolchain none --profile minimal
