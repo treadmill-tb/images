@@ -45,7 +45,7 @@ in
       mkdir -p "\$WORKDIR"
 
       echo "Creating \$WORKDIR/nbd-disk.qcow2 based on $ROOT_BLOB_PATH"
-      ${pkgs.qemu}/bin/qemu-img create -b "$ROOT_BLOB_PATH" -F qcow2 -f qcow2 "\$WORKDIR/nbd-disk.qcow2" 2G
+      ${pkgs.qemu}/bin/qemu-img create -b "$ROOT_BLOB_PATH" -F qcow2 -f qcow2 "\$WORKDIR/nbd-disk.qcow2" 4G
 
       echo "Unpacking boot archive into \$WORKDIR/tftp-boot (from $BOOT_BLOB_PATH)"
       mkdir -p "\$WORKDIR/tftp-boot"

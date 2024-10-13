@@ -13,14 +13,15 @@
 , pkgsCross
 , gnutar
 , tree
+, jq
 }:
 
 let
   puppet = import ../lib/puppet.nix { };
 
   nbdClientDeb = fetchurl {
-    url = "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/nbd-client_3.24-1.1_armhf.deb";
-    sha256 = "sha256-YlVrkz08ce5x+R1V8t7gNJVSscBeRV+Elg+Fp8O2IEE=";
+    url = "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/nbd-client_3.24-1.1_arm64.deb";
+    sha256 = "sha256-SM5aIKwFqggjqzlJlZQr6tj1UfkA5f+VmrW//m/yJtk=";
   };
 
   rustupInit = builtins.fetchurl {
@@ -30,10 +31,11 @@ let
 
   raspberryPiOSImage = fetchurl {
     urls = [
-      "https://downloads.raspberrypi.com/raspios_lite_armhf/images/raspios_lite_armhf-2024-07-04/2024-07-04-raspios-bookworm-armhf-lite.img.xz"
-      "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/2024-07-04_raspios-bookworm-armhf-lite.img.xz"
+      "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-07-04/2024-07-04-raspios-bookworm-arm64-lite.img.xz"
+      "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/2024-07-04_raspios-bookworm-arm64-lite.img.xz"
+
     ];
-    sha256 = "sha256-35wZLWbTXhzmes3jOltfK4H/AtK5hupS8fbqIR1kahs=";
+    sha256 = "sha256-Q9FQ55AVg5GeTrHw+oP+A2OvLR6Xd6W7cH1pbVNeJZk=";
   };
 
   puppetAarch64Musl = src: let
@@ -177,7 +179,7 @@ let
     sudo -u tml /customize-image/rustup-init -y --default-toolchain none --profile minimal
 
     # Install nbd-client
-    apt install "/customize-image/nbd-client_3.24-1.1_armhf.deb"
+    apt install "/customize-image/nbd-client_3.24-1.1_arm64.deb"
 
     # Delete the customize-image files:
     rm -rf /customize-image
@@ -234,7 +236,7 @@ let
       ${coreutils}/bin/cp -L ${nbdFstab} ./customize-image/fstab
       ${coreutils}/bin/cp -L ${autologinOverride "tml"} ./customize-image/autologin-override.conf
       ${coreutils}/bin/cp -L ${../lib/expandroot.sh} ./customize-image/expandroot.sh
-      ${coreutils}/bin/cp -L ${nbdClientDeb} ./customize-image/nbd-client_3.24-1.1_armhf.deb
+      ${coreutils}/bin/cp -L ${nbdClientDeb} ./customize-image/nbd-client_3.24-1.1_arm64.deb
       ${coreutils}/bin/cp -L ${puppetAarch64Musl puppet.treadmillSrc}/bin/tml-puppet ./customize-image/tml-puppet
       ${coreutils}/bin/cp -L ${rustupInit} ./customize-image/rustup-init
       ${lkl.out}/bin/cptofs -p -t ext4 -P2 -i raspios.img customize-image /
@@ -292,6 +294,9 @@ in
         ${coreutils}/bin/mkdir -p "$(${coreutils}/bin/dirname "$BOOT_BLOB_PATH")"
         ${coreutils}/bin/cp ${bootPartArchive} "$BOOT_BLOB_PATH"
 
+        # Get the virtual size of the root partition QCOW2 disk:
+        ROOT_BLOB_VIRTUAL_SIZE="$(${qemu}/bin/qemu-img info --output=json "${rootPartQCOW2}" | ${jq}/bin/jq '."virtual-size"')"
+
         # Calculate the SHA256 hash of the QCOW2 root partition and copy it to blobs/
         ROOT_BLOB_HASH=$(${coreutils}/bin/sha256sum ${rootPartQCOW2} | ${coreutils}/bin/cut -d' ' -f1)
         ROOT_BLOB_PATH="$out/blobs/''${ROOT_BLOB_HASH:0:2}/''${ROOT_BLOB_HASH:2:2}/''${ROOT_BLOB_HASH:4:2}/$ROOT_BLOB_HASH"
@@ -319,7 +324,7 @@ in
         "org.tockos.treadmill.manifest-ext.base.size" = $(${coreutils}/bin/stat -c%s ${rootPartQCOW2})
 
         ["org.tockos.treadmill.manifest-ext.base.blobs".layer-0-root."org.tockos.treadmill.manifest-ext.base.attrs"]
-        "org.tockos.treadmill.image.nbd_qcow2_layered_v0.blob-virtual-size" = "2092957696"
+        "org.tockos.treadmill.image.nbd_qcow2_layered_v0.blob-virtual-size" = "$ROOT_BLOB_VIRTUAL_SIZE"
         EOF
 
         # Calculate the SHA256 hash of the image-specific manifest file
