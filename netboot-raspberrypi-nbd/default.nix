@@ -137,8 +137,14 @@ let
     useradd -m -u 1000 -s /bin/bash tml
     usermod -a -G plugdev tml
     usermod -a -G tty tml
+    usermod -a -G dialout tml
     mv /etc/sudoers.d/010_pi-nopasswd /etc/sudoers.d/010_tml-nopasswd
     sed -i 's/pi/tml/g' /etc/sudoers.d/010_tml-nopasswd
+
+    # Give access to all USB devices
+    cat > /etc/udev/rules.d/99-tml.rules <<RULES
+    SUBSYSTEM=="usb", GROUP="plugdev", TAG+="uaccess"
+    RULES
 
     # Auto-login to the tml user on select serial consoles:
     ${
