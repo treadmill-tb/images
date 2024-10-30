@@ -138,6 +138,7 @@ let
     usermod -a -G plugdev tml
     usermod -a -G tty tml
     usermod -a -G dialout tml
+    usermod -a -G gpio tml
     mv /etc/sudoers.d/010_pi-nopasswd /etc/sudoers.d/010_tml-nopasswd
     sed -i 's/pi/tml/g' /etc/sudoers.d/010_tml-nopasswd
 
