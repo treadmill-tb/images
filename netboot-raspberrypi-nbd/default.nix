@@ -25,8 +25,8 @@ let
   };
 
   rustupInit = builtins.fetchurl {
-    url = "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/2024-08-21_rustup-init_aarch64-unknown-linux-musl";
-    sha256 = "sha256:0r6c2xk03bfylqfq21xx8akh6jl08qd408q3iq6a09yd0slsv1vh";
+    url = "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/2024-12-06_rustup-init_aarch64-unknown-linux-gnu";
+    sha256 = "1cm2vdwf4r7gxk4n7qqxpsfvvg5v943fa7bldxs4qqrywr8vzzqw";
   };
 
   raspberryPiOSImage = fetchurl {

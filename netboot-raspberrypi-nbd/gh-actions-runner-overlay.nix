@@ -6,11 +6,11 @@
 }: let
   inherit (pkgs) callPackage dasel lib;
 
-  ghActionsRunnerVersion = "2.319.1";
+  ghActionsRunnerVersion = "2.321.0";
 
   ghActionsRunnerHashes = {
-    "x64" = "sha256-P277dIihg+KR/Cxih24Uye5zKGQXNzT6zIWhv7F0RGQ=";
-    "arm64" = "sha256:1s6q7n0xnbymiy0bbdnfnnyn7wsnldds79gm7dgalk8cbv397n83";
+    "x64" = "17m248brzj4yai6z093bhs7w0fs5zccl9r7v2rmj7mx4wdyblims";
+    "arm64" = "1q9ncc4dmh16iff3xcxxahc0rsbld4ypql21fk8dhmrhsqsmgk32";
   };
 
   ghActionsRunnerArch = "arm64";
