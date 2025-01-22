@@ -1,23 +1,22 @@
-{ lib
-, bash
-, coreutils
-, fetchurl
-, writeText
-, writeScript
-, runCommand
-, qemu
-, libraspberrypi
-, xz
-, p7zip
-, lkl
-, pkgsCross
-, gnutar
-, tree
-, jq
-}:
-
-let
-  puppet = import ../lib/puppet.nix { };
+{
+  lib,
+  bash,
+  coreutils,
+  fetchurl,
+  writeText,
+  writeScript,
+  runCommand,
+  qemu,
+  libraspberrypi,
+  xz,
+  p7zip,
+  lkl,
+  pkgsCross,
+  gnutar,
+  tree,
+  jq,
+}: let
+  puppet = import ../lib/puppet.nix {};
 
   nbdClientDeb = fetchurl {
     url = "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/nbd-client_3.24-1.1_arm64.deb";
@@ -33,7 +32,6 @@ let
     urls = [
       "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-07-04/2024-07-04-raspios-bookworm-arm64-lite.img.xz"
       "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/2024-07-04_raspios-bookworm-arm64-lite.img.xz"
-
     ];
     sha256 = "sha256-Q9FQ55AVg5GeTrHw+oP+A2OvLR6Xd6W7cH1pbVNeJZk=";
   };
@@ -52,20 +50,22 @@ let
   in
     puppet.puppetBuilder src rustPlatform "aarch64-unknown-linux-musl";
 
-  autologinDevices = [ "ttyAMA0" "ttyAMA10" ];
+  autologinDevices = ["ttyAMA0" "ttyAMA10"];
 
-  autologinOverride = targetUser: writeText "autologin-override.conf" ''
-    [Service]
-    ExecStart=
-    ExecStart=-/sbin/agetty --autologin ${targetUser} --noclear %I $TERM
-  '';
+  autologinOverride = targetUser:
+    writeText "autologin-override.conf" ''
+      [Service]
+      ExecStart=
+      ExecStart=-/sbin/agetty --autologin ${targetUser} --noclear %I $TERM
+    '';
 
   autologinEtcPatch = runCommand "autologin-etc-patch" {} (
     lib.concatStringsSep "\n" (
       builtins.map (device: ''
         mkdir -p $out/etc/systemd/system/serial-getty@${device}.service.d/
         cp -L ${autologinOverride "root"} $out/etc/systemd/system/serial-getty@${device}.service.d/override.conf
-     '') autologinDevices
+      '')
+      autologinDevices
     )
   );
 
@@ -153,7 +153,8 @@ let
         builtins.map (device: ''
           mkdir -p /etc/systemd/system/serial-getty@${device}.service.d/
           cp /customize-image/autologin-override.conf /etc/systemd/system/serial-getty@${device}.service.d/override.conf
-       '') autologinDevices
+        '')
+        autologinDevices
       )
     }
 
@@ -203,6 +204,96 @@ let
     # Delete the customize-image files:
     rm -rf /customize-image
 
+
+    # (Inside your customizeImageScript, near the bottom, before unmounting/poweroff)
+
+    cat > /usr/local/bin/tml-job-gc.sh << 'SCRIPT'
+    #!/usr/bin/env bash
+    set -euo pipefail
+
+    # Where your job folders live:
+    JOBS_DIR="/var/lib/treadmill/nbd-netboot/jobs"
+
+    # The threshold in percent:
+    THRESHOLD=90
+
+    # We only run if $JOBS_DIR actually exists
+    if [ ! -d "$JOBS_DIR" ]; then
+      echo "No $JOBS_DIR directory found, skipping GC."
+      exit 0
+    fi
+
+    # Get the disk usage (in % used) of the filesystem containing $JOBS_DIR.
+    # We use df -P (POSIX) or -h, parse out the usage column, remove trailing '%'
+    CURRENT_USAGE=$(df -P "$JOBS_DIR" | tail -1 | awk '{print $5}' | sed 's/%//')
+
+    echo "Current usage on $(df -P "$JOBS_DIR" | tail -1 | awk '{print $6}'): $CURRENT_USAGE% (threshold = $THRESHOLD%)"
+
+    # If usage is at or below THRESHOLD, do nothing.
+    if [ "$CURRENT_USAGE" -le "$THRESHOLD" ]; then
+      echo "Disk usage $CURRENT_USAGE% is within limit. Skipping GC."
+      exit 0
+    fi
+
+    # Otherwise, sort old job directories by modification time ascending (oldest first).
+    # We look for directories matching '*-old-*'.
+    OLD_JOBS=$(find "$JOBS_DIR" -maxdepth 1 -type d -name '*-old-*' -printf '%T@ %p\n' 2>/dev/null | sort -n | awk '{print $2}')
+
+    # If no old-job directories exist, there's nothing we can do.
+    if [ -z "$OLD_JOBS" ]; then
+      echo "Disk usage is above $THRESHOLD%, but no old job directories found to remove."
+      exit 0
+    fi
+
+    echo "Usage $CURRENT_USAGE% > $THRESHOLD%, removing old job dirs (oldest first) until usage is under threshold..."
+
+    # Iterate one by one, removing oldest directories first, checking usage each time.
+    for oldjob in $OLD_JOBS; do
+      echo "Removing $oldjob..."
+      rm -rf "$oldjob"
+
+      # Re-check usage after each removal
+      CURRENT_USAGE=$(df -P "$JOBS_DIR" | tail -1 | awk '{print $5}' | sed 's/%//')
+      if [ "$CURRENT_USAGE" -le "$THRESHOLD" ]; then
+        echo "Disk usage now at $CURRENT_USAGE%. GC complete."
+        exit 0
+      fi
+    done
+
+    echo "All old jobs removed, but disk usage is still $CURRENT_USAGE%. Nothing more to remove."
+    SCRIPT
+
+    # Make the script executable
+    chmod +x /usr/local/bin/tml-job-gc.sh
+
+    # Create the systemd service unit (Type=oneshot)
+    cat > /etc/systemd/system/tml-job-gc.service <<SERVICE
+    [Unit]
+    Description=Garbage collect old treadmill job directories if disk usage exceeds threshold
+    After=network.target
+
+    [Service]
+    Type=oneshot
+    ExecStart=/usr/local/bin/tml-job-gc.sh
+    SERVICE
+
+    # Create a systemd timer to run the GC script every hour
+    cat > /etc/systemd/system/tml-job-gc.timer <<TIMER
+    [Unit]
+    Description=Periodic treadmill job GC timer
+
+    [Timer]
+    OnBootSec=5min
+    OnUnitActiveSec=1h
+    # Adjust the above line for your desired interval, e.g. OnUnitActiveSec=30min
+
+    [Install]
+    WantedBy=timers.target
+    TIMER
+
+    # Enable the timer at startup
+    ln -s /etc/systemd/system/tml-job-gc.timer /etc/systemd/system/timers.target.wants/tml-job-gc.timer
+
     # Unmount all disk (read-only remount root fs) and force power off.
     # We don't have an init system active:
     umount /boot/firmware
@@ -220,62 +311,65 @@ let
     name = "treadmill-image-netboot-raspberrypios-nbd-customized-sd";
     system = builtins.currentSystem;
     builder = "${bash}/bin/bash";
-    outputs = [ "out" "qemuBcm2710Rpi3BPlusDtb" "kernel8" ];
-    args = [ "-c" ''
-      set -euo pipefail
+    outputs = ["out" "qemuBcm2710Rpi3BPlusDtb" "kernel8"];
+    args = [
+      "-c"
+      ''
+        set -euo pipefail
 
-      ${xz}/bin/xz -d --stdout ${raspberryPiOSImage} > raspios.img
-      ${p7zip}/bin/7z -y x raspios.img 0.fat
-      ${coreutils}/bin/mv 0.fat boot.img
-      ${p7zip}/bin/7z -y x boot.img bcm2710-rpi-3-b-plus.dtb bcm2711-rpi-4-b.dtb kernel8.img overlays/disable-bt.dtbo
-      ${coreutils}/bin/test -f bcm2710-rpi-3-b-plus.dtb
-      ${coreutils}/bin/test -f bcm2711-rpi-4-b.dtb
-      ${coreutils}/bin/test -f kernel8.img
-      ${coreutils}/bin/test -f overlays/disable-bt.dtbo
+        ${xz}/bin/xz -d --stdout ${raspberryPiOSImage} > raspios.img
+        ${p7zip}/bin/7z -y x raspios.img 0.fat
+        ${coreutils}/bin/mv 0.fat boot.img
+        ${p7zip}/bin/7z -y x boot.img bcm2710-rpi-3-b-plus.dtb bcm2711-rpi-4-b.dtb kernel8.img overlays/disable-bt.dtbo
+        ${coreutils}/bin/test -f bcm2710-rpi-3-b-plus.dtb
+        ${coreutils}/bin/test -f bcm2711-rpi-4-b.dtb
+        ${coreutils}/bin/test -f kernel8.img
+        ${coreutils}/bin/test -f overlays/disable-bt.dtbo
 
-      # We need to patch the DTB to enable UART console output for the
-      # kernel and disable Bluetooth -- that'll hang QEMU. This doesn't
-      # touch the DTB in the image itself:
-      ${coreutils}/bin/cp bcm2710-rpi-3-b-plus.dtb bcm2710-rpi-3-b-plus.dtb.cust
-      ${libraspberrypi}/bin/dtmerge bcm2710-rpi-3-b-plus.dtb.cust bcm2710-rpi-3-b-plus.dtb.merged - uart0=on
-      ${coreutils}/bin/mv bcm2710-rpi-3-b-plus.dtb.merged bcm2710-rpi-3-b-plus.dtb.cust
-      ${libraspberrypi}/bin/dtmerge bcm2710-rpi-3-b-plus.dtb.cust bcm2710-rpi-3-b-plus.dtb.merged overlays/disable-bt.dtbo
-      ${coreutils}/bin/mv bcm2710-rpi-3-b-plus.dtb.merged bcm2710-rpi-3-b-plus.dtb.cust
+        # We need to patch the DTB to enable UART console output for the
+        # kernel and disable Bluetooth -- that'll hang QEMU. This doesn't
+        # touch the DTB in the image itself:
+        ${coreutils}/bin/cp bcm2710-rpi-3-b-plus.dtb bcm2710-rpi-3-b-plus.dtb.cust
+        ${libraspberrypi}/bin/dtmerge bcm2710-rpi-3-b-plus.dtb.cust bcm2710-rpi-3-b-plus.dtb.merged - uart0=on
+        ${coreutils}/bin/mv bcm2710-rpi-3-b-plus.dtb.merged bcm2710-rpi-3-b-plus.dtb.cust
+        ${libraspberrypi}/bin/dtmerge bcm2710-rpi-3-b-plus.dtb.cust bcm2710-rpi-3-b-plus.dtb.merged overlays/disable-bt.dtbo
+        ${coreutils}/bin/mv bcm2710-rpi-3-b-plus.dtb.merged bcm2710-rpi-3-b-plus.dtb.cust
 
-      # Login to shell without password (disabled, running custom init instead
-      # which itself enables autologin for the tml user)
-      #IMAGEPATH=$PWD/raspios.img
-      #pushd ${autologinEtcPatch}
-      #cptofs -p -t ext4 -P2 -i "$IMAGEPATH" etc /
-      #popd
+        # Login to shell without password (disabled, running custom init instead
+        # which itself enables autologin for the tml user)
+        #IMAGEPATH=$PWD/raspios.img
+        #pushd ${autologinEtcPatch}
+        #cptofs -p -t ext4 -P2 -i "$IMAGEPATH" etc /
+        #popd
 
-      # Copy the nbd-client and image customization script in:
-      ${coreutils}/bin/mkdir ./customize-image
-      ${coreutils}/bin/cp -L ${customizeImageScript} ./customize-image/customize.sh
-      ${coreutils}/bin/cp -L ${nbdFstab} ./customize-image/fstab
-      ${coreutils}/bin/cp -L ${autologinOverride "tml"} ./customize-image/autologin-override.conf
-      ${coreutils}/bin/cp -L ${../lib/expandroot.sh} ./customize-image/expandroot.sh
-      ${coreutils}/bin/cp -L ${nbdClientDeb} ./customize-image/nbd-client_3.24-1.1_arm64.deb
-      ${coreutils}/bin/cp -L ${puppetAarch64Musl puppet.treadmillSrc}/bin/tml-puppet ./customize-image/tml-puppet
-      ${coreutils}/bin/cp -L ${rustupInit} ./customize-image/rustup-init
-      ${lkl.out}/bin/cptofs -p -t ext4 -P2 -i raspios.img customize-image /
+        # Copy the nbd-client and image customization script in:
+        ${coreutils}/bin/mkdir ./customize-image
+        ${coreutils}/bin/cp -L ${customizeImageScript} ./customize-image/customize.sh
+        ${coreutils}/bin/cp -L ${nbdFstab} ./customize-image/fstab
+        ${coreutils}/bin/cp -L ${autologinOverride "tml"} ./customize-image/autologin-override.conf
+        ${coreutils}/bin/cp -L ${../lib/expandroot.sh} ./customize-image/expandroot.sh
+        ${coreutils}/bin/cp -L ${nbdClientDeb} ./customize-image/nbd-client_3.24-1.1_arm64.deb
+        ${coreutils}/bin/cp -L ${puppetAarch64Musl puppet.treadmillSrc}/bin/tml-puppet ./customize-image/tml-puppet
+        ${coreutils}/bin/cp -L ${rustupInit} ./customize-image/rustup-init
+        ${lkl.out}/bin/cptofs -p -t ext4 -P2 -i raspios.img customize-image /
 
-      # QEMU requires images to be a power of two in size:
-      ${qemu}/bin/qemu-img resize -f raw ./raspios.img 4G
+        # QEMU requires images to be a power of two in size:
+        ${qemu}/bin/qemu-img resize -f raw ./raspios.img 4G
 
-      # Perform the remaining image customizations in a VM:
-      ${qemu}/bin/qemu-system-aarch64 \
-        -machine raspi3b -cpu cortex-a72 -m 1G -smp 4 \
-        -dtb bcm2710-rpi-3-b-plus.dtb.cust \
-        -kernel kernel8.img \
-        -device sd-card,drive=drive0 -drive id=drive0,if=none,format=raw,file=raspios.img \
-        -append "rw earlyprintk loglevel=8 console=ttyAMA0,115200 dwc_otg.lpm_enable=0 root=/dev/mmcblk0p2 rootdelay=1 init=/customize-image/customize.sh" \
-        -nographic
+        # Perform the remaining image customizations in a VM:
+        ${qemu}/bin/qemu-system-aarch64 \
+          -machine raspi3b -cpu cortex-a72 -m 1G -smp 4 \
+          -dtb bcm2710-rpi-3-b-plus.dtb.cust \
+          -kernel kernel8.img \
+          -device sd-card,drive=drive0 -drive id=drive0,if=none,format=raw,file=raspios.img \
+          -append "rw earlyprintk loglevel=8 console=ttyAMA0,115200 dwc_otg.lpm_enable=0 root=/dev/mmcblk0p2 rootdelay=1 init=/customize-image/customize.sh" \
+          -nographic
 
-      ${coreutils}/bin/mv raspios.img $out
-      ${coreutils}/bin/mv bcm2710-rpi-3-b-plus.dtb.cust $qemuBcm2710Rpi3BPlusDtb
-      ${coreutils}/bin/mv kernel8.img $kernel8
-    '' ];
+        ${coreutils}/bin/mv raspios.img $out
+        ${coreutils}/bin/mv bcm2710-rpi-3-b-plus.dtb.cust $qemuBcm2710Rpi3BPlusDtb
+        ${coreutils}/bin/mv kernel8.img $kernel8
+      ''
+    ];
   };
 
   bootPartArchive = runCommand "treadmill-image-netboot-raspberrypios-nbd-bootpart-archive.sh" {} ''
@@ -291,8 +385,6 @@ let
     ${p7zip}/bin/7z x ${customizedSDImage} 1.img
     ${qemu}/bin/qemu-img convert -f raw -O qcow2 1.img $out
   '';
-
-
 in
   (derivation {
     name = "treadmill-store";
@@ -361,9 +453,11 @@ in
         ${coreutils}/bin/echo "$IMAGE_HASH" > $out/image.txt
       ''
     ];
-  }) // {
+  })
+  // {
     inherit
       customizedSDImage
       bootPartArchive
-      rootPartQCOW2;
+      rootPartQCOW2
+      ;
   }
