@@ -6,25 +6,6 @@
 }: let
   inherit (pkgs) callPackage dasel lib;
 
-  ghActionsRunnerVersion = "2.321.0";
-
-  ghActionsRunnerHashes = {
-    "x64" = "17m248brzj4yai6z093bhs7w0fs5zccl9r7v2rmj7mx4wdyblims";
-    "arm64" = "1q9ncc4dmh16iff3xcxxahc0rsbld4ypql21fk8dhmrhsqsmgk32";
-  };
-
-  ghActionsRunnerArch = "arm64";
-
-  ghActionsRunnerArchive = builtins.fetchurl {
-    url = "https://github.com/actions/runner/releases/download/v${ghActionsRunnerVersion}/actions-runner-linux-${ghActionsRunnerArch}-${ghActionsRunnerVersion}.tar.gz";
-    sha256 = ghActionsRunnerHashes."${ghActionsRunnerArch}";
-  };
-
-  ghActionsRunnerUnpacked = pkgs.runCommand "gh-actions-runner-linux-${ghActionsRunnerArch}-${ghActionsRunnerArch}-unpack.sh" {} ''
-    mkdir -p $out
-    ${pkgs.gnutar}/bin/tar -xzf ${ghActionsRunnerArchive} -C $out
-  '';
-
   overlayedImage = pkgs.vmTools.runInLinuxVM (
     pkgs.runCommand "install-gh-actions-runner-vm"
     {
@@ -63,15 +44,33 @@
       ${pkgs.mount}/bin/mount /dev/vda /mnt
       ls /mnt
 
-      cp -r ${ghActionsRunnerUnpacked} /mnt/opt/gh-actions-runner
-      chown 1000:1000 -R /mnt/opt/gh-actions-runner
-      chmod u+w -R /mnt/opt/gh-actions-runner
+      cp ${./install-gh-actions.sh} /mnt/opt/install-gh-actions-runner.sh
+      chmod +x /mnt/opt/install-gh-actions-runner.sh
+      cat > "/mnt/etc/systemd/system/install-gh-actions-runner.service" <<EOF
+      [Unit]
+      Description=Download and install latest GitHub Actions Runner release
+      After=network.target
+
+      [Service]
+      Type=oneshot
+      ExecStart=/opt/install-gh-actions-runner.sh
+      Restart=on-failure
+
+      User=root
+      Group=root
+      Environment="RUNNER_ARCH=arm64"
+      Environment="RUNNER_OWNER=1000"
+      Environment="RUNNER_GROUP=1000"
+
+      [Install]
+      WantedBy=multi-user.target
+      EOF
 
       cat > "/mnt/etc/systemd/system/gh-actions-runner.service" <<EOF
       [Unit]
       Description=GitHub Actions Runner
-      After=network.target tml-puppet.service
-      Wants=tml-puppet.service
+      After=network.target tml-puppet.service install-gh-actions-runner.service
+      Wants=tml-puppet.service install-gh-actions-runner.service
 
       [Service]
       ExecStartPre=/bin/bash -Eexuo pipefail -c '${lib.concatStringsSep " && " [
