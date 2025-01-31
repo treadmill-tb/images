@@ -175,7 +175,7 @@ let
     ExecStartPre=/usr/bin/touch /home/tml/.ssh/authorized_keys
     ExecStartPre=/bin/chmod 500 /home/tml/.ssh
     ExecStartPre=/bin/chown -R tml /home/tml/.ssh
-    ExecStart=/bin/bash -c '/usr/local/bin/tml-puppet daemon --transport tcp --tcp-control-socket-addr "\$(ip route show 0.0.0.0/0 | cut -d" " -f3):3859" --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --parameters-dir /run/tml/parameters --job-id-file /run/tml/job-id'
+    ExecStart=/bin/bash -c '/usr/local/bin/tml-puppet daemon --transport tcp --tcp-control-socket-addr "\$(ip route show 0.0.0.0/0 | cut -d" " -f3):3859" --authorized-keys-file /home/tml/.ssh/authorized_keys --exit-on-authorized-keys-update-error --job-info-dir /run/tml --parameters-dir /run/tml/parameters'
     Restart=always
     RestartSec=5s
     SERVICE

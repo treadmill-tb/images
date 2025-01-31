@@ -4,13 +4,13 @@
   fenix = import (builtins.fetchGit {
     url = "https://github.com/nix-community/fenix.git";
     ref = "refs/heads/main";
-    rev = "c1bb57f954601094bfacc2a7ca65551b3f1bcecd";
+    rev = "667e3751a708b886bb67879147f71c07b0014c7f";
   }) { };
 
   treadmillSrc = builtins.fetchGit {
     url = "https://github.com/treadmill-tb/treadmill.git";
     ref = "main";
-    rev = "f10874dd456631b46ed0ab2cb2d3cf3c9177a662";
+    rev = "eda5c55a0915f31f3698adac5eb613b5eaefa47c";
   };
 
   puppetBuilder = src: rustPlatform': target: rustPlatform'.buildRustPackage {
