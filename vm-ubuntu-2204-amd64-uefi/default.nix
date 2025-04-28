@@ -127,6 +127,10 @@
       ${util-linux}/bin/partx -u "${disk}"
       ${dosfstools}/bin/mkfs.vfat -F32 -n ESP "${disk}1"
       ${e2fsprogs}/bin/mkfs.ext4 "${disk}2" -L root
+      # Required for grub-install --target=x86_64-efi to work
+      ${e2fsprogs}/bin/tune2fs -O ^metadata_csum_seed "${disk}2"
+      # Required for e2fsck to work in the final system image
+      ${e2fsprogs}/bin/tune2fs -O ^orphan_file "${disk}2"
 
       mkdir /mnt
       ${util-linux}/bin/mount -t ext4 "${disk}2" /mnt
@@ -197,7 +201,7 @@
       EOF
       sed -i '/TIMEOUT_HIDDEN/d' /etc/default/grub
       update-grub
-      grub-install --target x86_64-efi
+      grub-install --target=x86_64-efi --efi-directory=/boot/efi --removable
 
       # Configure networking
       ln -snf /lib/systemd/resolv.conf /etc/resolv.conf
