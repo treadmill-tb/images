@@ -21,9 +21,8 @@
   disk = "/dev/vda";
 
   rustupInit = builtins.fetchurl {
-    # TODO: re-host on mirror because version changes ...
-    url = "https://static.rust-lang.org/rustup/dist/x86_64-unknown-linux-gnu/rustup-init";
-    sha256 = "sha256:0vgm43wl33apxxyvip85nkmi9fqx1m6d02djhf4p00p9jdlwxvka";
+    url = "https://alpha.mirror.svc.schuermann.io/files/treadmill-tb/2025-04-28_rustup-init_x86_64-unknown-linux-gnu";
+    sha256 = "sha256:0zryrpk9xwxk3rcic3f1x6ymrzk1300cw2xscacbpl630jq9ycx3";
   };
 
   puppetx8664Musl = src: let
