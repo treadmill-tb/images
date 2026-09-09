@@ -1,0 +1,8 @@
+{
+  "title": "Raspberry Pi OS 13 (NBD)",
+  "version": "13",
+  "arch": "aarch64",
+  "type": "sd",
+  "grow": "4G",
+  "publish": "raspberrypios-13"
+}

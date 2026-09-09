@@ -1,0 +1,1 @@
+../../../shared/gha-runner/install-gh-actions-runner.sh

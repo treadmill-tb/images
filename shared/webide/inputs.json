@@ -1,0 +1,26 @@
+{
+  "code_server__x86_64": {
+    "version": "4.132.0",
+    "url": "https://github.com/coder/code-server/releases/download/v4.132.0/code-server_4.132.0_amd64.deb",
+    "sha256": "18e0e69920ab23b725cb219fb42bc045a908421448cf496a3124314e1a02bcf1",
+    "source": {
+      "datasource": "github-releases",
+      "repo": "coder/code-server",
+      "asset": "code-server_{version}_amd64.deb"
+    },
+    "hash_source": "computed",
+    "retrieved_at": "2026-09-09T00:00:00Z"
+  },
+  "code_server__aarch64": {
+    "version": "4.132.0",
+    "url": "https://github.com/coder/code-server/releases/download/v4.132.0/code-server_4.132.0_arm64.deb",
+    "sha256": "a7f76980a44bce06490db5fb8ee50b2b94674b3940f04899c818b3ef4058cfc2",
+    "source": {
+      "datasource": "github-releases",
+      "repo": "coder/code-server",
+      "asset": "code-server_{version}_arm64.deb"
+    },
+    "hash_source": "computed",
+    "retrieved_at": "2026-09-09T00:00:00Z"
+  }
+}

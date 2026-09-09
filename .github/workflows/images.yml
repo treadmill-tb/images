@@ -1,0 +1,189 @@
+name: treadmill-images
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      images:
+        description: 'Image directories to build (space separated, empty for all)'
+        type: string
+        default: ''
+      push_to_ghcr:
+        description: 'Push the built image layouts to ghcr.io'
+        type: boolean
+        default: false
+  release:
+    types: [published]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  # The PR gate: schema, shellcheck and formatting, with no distro download.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v17
+        with:
+          name: treadmill-tb
+          skipPush: true
+      - run: nix flake check --print-build-logs
+
+  # One job per image, bucketed by depth in the base graph. Adding an image is a
+  # new directory, not an edit here; plan.sh fails if one sits deeper than the
+  # ladder below, which Actions cannot template.
+  plan:
+    if: ${{ github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    outputs:
+      level_0: ${{ steps.matrix.outputs.level_0 }}
+      level_1: ${{ steps.matrix.outputs.level_1 }}
+      level_2: ${{ steps.matrix.outputs.level_2 }}
+      level_3: ${{ steps.matrix.outputs.level_3 }}
+      level_4: ${{ steps.matrix.outputs.level_4 }}
+      level_5: ${{ steps.matrix.outputs.level_5 }}
+      level_6: ${{ steps.matrix.outputs.level_6 }}
+      level_7: ${{ steps.matrix.outputs.level_7 }}
+      level_8: ${{ steps.matrix.outputs.level_8 }}
+      level_9: ${{ steps.matrix.outputs.level_9 }}
+      push: ${{ steps.matrix.outputs.push }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Expand the build matrix
+        id: matrix
+        env:
+          IMAGES: ${{ inputs.images }}
+        run: |
+          set -euo pipefail
+          # shellcheck disable=SC2086
+          matrix="$(./tools/ci/plan.sh --matrix ${IMAGES:-})"
+          for level in 0 1 2 3 4 5 6 7 8 9; do
+            value="$(jq -c --arg k "level_$level" '.[$k]' <<<"$matrix")"
+            echo "level_$level=$value" >> "$GITHUB_OUTPUT"
+            echo "level_$level: $value"
+          done
+
+          push=false
+          if [ "${{ github.event_name }}" = release ] || \
+             [ "${{ inputs.push_to_ghcr }}" = true ]; then
+            push=true
+          fi
+          echo "push=$push" >> "$GITHUB_OUTPUT"
+
+  level-0:
+    needs: plan
+    if: ${{ fromJSON(needs.plan.outputs.level_0).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_0) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-1:
+    needs: [plan, level-0]
+    if: ${{ fromJSON(needs.plan.outputs.level_1).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_1) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-2:
+    needs: [plan, level-1]
+    if: ${{ fromJSON(needs.plan.outputs.level_2).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_2) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-3:
+    needs: [plan, level-2]
+    if: ${{ fromJSON(needs.plan.outputs.level_3).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_3) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-4:
+    needs: [plan, level-3]
+    if: ${{ fromJSON(needs.plan.outputs.level_4).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_4) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-5:
+    needs: [plan, level-4]
+    if: ${{ fromJSON(needs.plan.outputs.level_5).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_5) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-6:
+    needs: [plan, level-5]
+    if: ${{ fromJSON(needs.plan.outputs.level_6).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_6) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-7:
+    needs: [plan, level-6]
+    if: ${{ fromJSON(needs.plan.outputs.level_7).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_7) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-8:
+    needs: [plan, level-7]
+    if: ${{ fromJSON(needs.plan.outputs.level_8).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_8) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}
+
+  level-9:
+    needs: [plan, level-8]
+    if: ${{ fromJSON(needs.plan.outputs.level_9).include[0] != null }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.level_9) }}
+    uses: ./.github/workflows/build-image.yml
+    with:
+      entry: ${{ toJSON(matrix) }}
+      push: ${{ needs.plan.outputs.push == 'true' }}

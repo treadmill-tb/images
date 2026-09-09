@@ -1,0 +1,8 @@
+{
+  "title": "Ubuntu Server 26.04",
+  "version": "26.04",
+  "arch": "x86_64",
+  "type": "disk",
+  "grow": "4G",
+  "publish": "ubuntu-server-2604"
+}

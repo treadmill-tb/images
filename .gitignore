@@ -1,0 +1,10 @@
+# Build outputs
+out/
+.image-cache/
+
+# Nix result symlinks
+result
+result-*
+
+# Direnv state
+.direnv

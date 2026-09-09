@@ -1,0 +1,6 @@
+{
+  "title": "Raspberry Pi OS 13 (NBD) with GitHub Actions Runner",
+  "arch": "aarch64",
+  "type": "sd",
+  "base": "../base"
+}

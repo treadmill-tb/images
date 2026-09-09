@@ -1,0 +1,35 @@
+{
+  "vendor_image": {
+    "version": "26.04-release-20260612",
+    "url": "https://cloud-images.ubuntu.com/releases/26.04/release-20260612/ubuntu-26.04-server-cloudimg-amd64.img",
+    "sha256": "0c9fb915bab0b36b361d3bf8aeae2115dda19d81a306656964de048033481670",
+    "source": {
+      "datasource": "ubuntu-cloud-images",
+      "channel": "releases/26.04"
+    },
+    "hash_source": "vendor-sha256sums",
+    "retrieved_at": "2026-09-09T00:00:00Z"
+  },
+  "rustup_init": {
+    "version": "1.29.0",
+    "url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init",
+    "sha256": "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10",
+    "source": {
+      "datasource": "rustup-archive",
+      "target": "x86_64-unknown-linux-gnu"
+    },
+    "hash_source": "vendor-sha256sums",
+    "retrieved_at": "2026-09-09T00:00:00Z"
+  },
+  "ttyd": {
+    "version": "1.7.7",
+    "url": "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64",
+    "sha256": "8a217c968aba172e0dbf3f34447218dc015bc4d5e59bf51db2f2cd12b7be4f55",
+    "source": {
+      "datasource": "github-releases",
+      "repo": "tsl0922/ttyd"
+    },
+    "hash_source": "computed",
+    "retrieved_at": "2026-09-09T00:00:00Z"
+  }
+}

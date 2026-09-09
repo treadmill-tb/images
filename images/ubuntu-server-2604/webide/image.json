@@ -1,0 +1,6 @@
+{
+  "title": "Ubuntu Server 26.04 with code-server Web IDE",
+  "arch": "x86_64",
+  "type": "disk",
+  "base": "../base"
+}

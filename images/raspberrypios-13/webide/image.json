@@ -1,0 +1,6 @@
+{
+  "title": "Raspberry Pi OS 13 (NBD) with code-server Web IDE",
+  "arch": "aarch64",
+  "type": "sd",
+  "base": "../base"
+}

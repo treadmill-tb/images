@@ -1,0 +1,119 @@
+name: build-image
+
+on:
+  workflow_call:
+    inputs:
+      entry:
+        type: string
+        required: true
+      push:
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ${{ fromJSON(inputs.entry).runner }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: cachix/install-nix-action@v31
+      - uses: cachix/cachix-action@v17
+        with:
+          name: treadmill-tb
+          skipPush: true
+
+      # image-util and the guest payload binaries come from the treadmill flake;
+      # everything build-image.sh execs comes from apt, so the arm runner does
+      # not have to build a qemu closure.
+      - name: Build image-util and the payload binaries
+        id: bins
+        env:
+          ENTRY: ${{ inputs.entry }}
+        run: |
+          set -euxo pipefail
+          arch="$(jq -r '.arch' <<<"$ENTRY")"
+          image_util="$(nix build --print-build-logs --no-link --print-out-paths '.#image-util')"
+          puppet="$(nix build --print-build-logs --no-link --print-out-paths ".#tml-puppet-$arch")"
+          caddy="$(nix build --print-build-logs --no-link --print-out-paths ".#tml-caddy-$arch")"
+          echo "image_util=$image_util" >> "$GITHUB_OUTPUT"
+          echo "puppet=$puppet" >> "$GITHUB_OUTPUT"
+          echo "caddy=$caddy" >> "$GITHUB_OUTPUT"
+
+      - name: Install the image build toolchain
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            systemd-container qemu-utils cloud-guest-utils e2fsprogs \
+            xz-utils util-linux curl jq skopeo
+
+      - name: Free disk space
+        run: |
+          set -euxo pipefail
+          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
+          df -h "$RUNNER_TEMP" /
+
+      - name: Download the lower layout
+        if: ${{ fromJSON(inputs.entry).lower_artifact != '' && fromJSON(inputs.entry).lower_ref == '' }}
+        uses: actions/download-artifact@v6
+        with:
+          name: ${{ fromJSON(inputs.entry).lower_artifact }}
+          path: ${{ runner.temp }}/lower
+
+      - name: Build the image
+        env:
+          ENTRY: ${{ inputs.entry }}
+        run: |
+          set -euxo pipefail
+          lower_ref="$(jq -r '.lower_ref' <<<"$ENTRY")"
+          lower_artifact="$(jq -r '.lower_artifact' <<<"$ENTRY")"
+          args=(--image "$(jq -r '.image' <<<"$ENTRY")")
+          if [ -n "$lower_ref" ]; then
+            args+=(--lower-ref "$lower_ref")
+          elif [ -n "$lower_artifact" ]; then
+            args+=(--lower "$RUNNER_TEMP/lower")
+          fi
+          ./build/build-image.sh "${args[@]}" \
+            --payload "${{ steps.bins.outputs.puppet }}/bin/tml-puppet" \
+            --payload "${{ steps.bins.outputs.caddy }}/bin/caddy" \
+            --image-util "${{ steps.bins.outputs.image_util }}/bin/image-util" \
+            --work "$RUNNER_TEMP" \
+            -o "$RUNNER_TEMP/out"
+
+      - name: Upload the layout
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ fromJSON(inputs.entry).artifact }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+
+      - name: Log in to ghcr.io
+        if: ${{ inputs.push && fromJSON(inputs.entry).publish != '' }}
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push to ghcr.io
+        if: ${{ inputs.push && fromJSON(inputs.entry).publish != '' }}
+        env:
+          ENTRY: ${{ inputs.entry }}
+        run: |
+          set -euo pipefail
+          # The runner ships a v1 /etc/containers/registries.conf, which this
+          # skopeo rejects; point it at an empty v2 file instead.
+          CONTAINERS_REGISTRIES_CONF="$RUNNER_TEMP/registries.conf"
+          : > "$CONTAINERS_REGISTRIES_CONF"
+          export CONTAINERS_REGISTRIES_CONF
+
+          owner="$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
+          repo="ghcr.io/$owner/$(jq -r '.publish' <<<"$ENTRY")"
+          for tag in "$GITHUB_SHA" latest; do
+            skopeo copy --all "oci:$RUNNER_TEMP/out" "docker://$repo:$tag"
+          done
