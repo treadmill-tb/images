@@ -52,12 +52,6 @@ jobs:
             systemd-container qemu-utils cloud-guest-utils e2fsprogs \
             xz-utils util-linux curl jq skopeo
 
-      - name: Free disk space
-        run: |
-          set -euxo pipefail
-          sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
-          df -h "$RUNNER_TEMP" /
-
       - name: Download the lower layout
         if: ${{ fromJSON(inputs.entry).lower_artifact != '' && fromJSON(inputs.entry).lower_ref == '' }}
         uses: actions/download-artifact@v6
