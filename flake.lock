@@ -129,11 +129,11 @@
         "treefmt-nix": "treefmt-nix"
       },
       "locked": {
-        "lastModified": 1788877112,
-        "narHash": "sha256-QCz8Vmx+iTtFWoGIgS2uJcDOzWRtH9nmIX7u+ApIrsM=",
+        "lastModified": 1789001903,
+        "narHash": "sha256-X+fDPRonLUbm0o2CpfYVSNet1TFfyU9AorQHPTaN2Mk=",
         "owner": "treadmill-tb",
         "repo": "treadmill",
-        "rev": "98d1c5bda7ff8a76f600cfd44b3973e3f1dc16fc",
+        "rev": "2339e5e47f0969482fd47b5493a7ef4abcaf3631",
         "type": "github"
       },
       "original": {
