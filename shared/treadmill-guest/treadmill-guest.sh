@@ -10,6 +10,8 @@ set -eu
 : "${rustup_init_sha256:?}"
 : "${ttyd_url:?}"
 : "${ttyd_sha256:?}"
+: "${websocat_url:?}"
+: "${websocat_sha256:?}"
 
 command -v curl >/dev/null || apt-get install -y curl ca-certificates
 
@@ -24,6 +26,9 @@ install -m 0755 "$TML_PAYLOAD_DIR/caddy" /usr/local/bin/caddy
 fetch_verified "$ttyd_url" "$ttyd_sha256" /usr/local/bin/ttyd
 chmod 0755 /usr/local/bin/ttyd
 
+fetch_verified "$websocat_url" "$websocat_sha256" /usr/local/bin/websocat
+chmod 0755 /usr/local/bin/websocat
+
 fetch_verified "$rustup_init_url" "$rustup_init_sha256" /opt/rustup-init
 chmod 0755 /opt/rustup-init
 
@@ -36,6 +41,7 @@ if [ -n "$existing_uid1000" ] && [ "$existing_uid1000" != tml ]; then
 	userdel -r "$existing_uid1000" 2>/dev/null || true
 fi
 useradd -m -u 1000 -s /bin/bash tml
+passwd -d tml
 usermod -a -G plugdev tml
 usermod -a -G tty tml
 echo "tml ALL=(ALL) NOPASSWD: ALL" >/etc/sudoers.d/010_tml-nopasswd
@@ -161,6 +167,56 @@ ExecStart=/usr/bin/ssh-keygen -A
 RemainAfterExit=true
 SERVICE
 systemctl enable ssh-generate-host-keys.service
+
+cat >/etc/ssh/sshd_config.tml <<'SSHDCONF'
+ListenAddress 127.0.0.1:2222
+PidFile none
+AllowUsers tml
+AuthenticationMethods none
+PasswordAuthentication yes
+PermitEmptyPasswords yes
+UsePAM no
+AcceptEnv LANG LC_*
+Subsystem sftp internal-sftp
+SSHDCONF
+
+cat >/etc/systemd/system/tml-sshd.service <<'SERVICE'
+[Install]
+WantedBy=multi-user.target
+[Unit]
+After=network.target ssh-generate-host-keys.service
+[Service]
+ExecStartPre=/bin/mkdir -p /run/sshd
+ExecStart=/usr/sbin/sshd -D -f /etc/ssh/sshd_config.tml
+Restart=always
+RestartSec=5s
+SERVICE
+systemctl enable tml-sshd.service
+
+cat >/etc/systemd/system/tml-sshws.service <<'SERVICE'
+[Install]
+WantedBy=multi-user.target
+[Unit]
+After=network.target tml-sshd.service
+[Service]
+User=tml
+Group=tml
+RuntimeDirectory=tml-sshws
+RuntimeDirectoryMode=0750
+ExecStart=/usr/local/bin/websocat --binary --exit-on-eof ws-u:unix-l:/run/tml-sshws/ssh.sock tcp:127.0.0.1:2222
+Restart=always
+RestartSec=5s
+SERVICE
+systemctl enable tml-sshws.service
+
+cat >/etc/tml/services.d/ssh.json <<'SERVICEDECL'
+{
+	"name": "ssh",
+	"label": "SSH",
+	"protocol": "sshws",
+	"upstream": "unix//run/tml-sshws/ssh.sock"
+}
+SERVICEDECL
 
 for dev in $serial_consoles; do
 	mkdir -p "/etc/systemd/system/serial-getty@${dev}.service.d"

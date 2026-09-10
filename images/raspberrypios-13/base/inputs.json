@@ -31,5 +31,16 @@
     },
     "hash_source": "computed",
     "retrieved_at": "2026-09-09T00:00:00Z"
+  },
+  "websocat": {
+    "version": "1.14.1",
+    "url": "https://github.com/vi/websocat/releases/download/v1.14.1/websocat.aarch64-unknown-linux-musl",
+    "sha256": "711a69576a2ff473fb01a90ffafb571c2ed019e55479d7ae71b12c2eadeb7011",
+    "source": {
+      "datasource": "github-releases",
+      "repo": "vi/websocat"
+    },
+    "hash_source": "computed",
+    "retrieved_at": "2026-09-09T00:00:00Z"
   }
 }
