@@ -1,6 +1,7 @@
 name: treadmill-images
 
 on:
+  push:
   pull_request:
   workflow_dispatch:
     inputs:
@@ -40,7 +41,7 @@ jobs:
   # new directory, not an edit here; plan.sh fails if one sits deeper than the
   # ladder below, which Actions cannot template.
   plan:
-    if: ${{ github.event_name != 'pull_request' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
       level_0: ${{ steps.matrix.outputs.level_0 }}
