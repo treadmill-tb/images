@@ -74,7 +74,7 @@ Create `images/<family>/<name>/` with an `image.json` and a `provision.sh`.
 | `arch`, `type`           | required; `x86_64`/`aarch64`, `disk`/`sd`                         |
 | `base`                   | `../<name>`, a registry reference, or none                        |
 | `grow`                   | the size of the new image layer                                   |
-| `version`, `description` | OCI manifest metadata                                             |
+| `version`, `description` | OCI manifest metadata; inherited from `base` if unset             |
 | `publish`                | ghcr repository name; defaults to `<family>-<name>`, `""` to skip |
 
 `provision.sh` runs in the context of the guest image. We use `systemd-nspawn`

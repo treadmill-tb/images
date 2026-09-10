@@ -277,6 +277,15 @@ delta="$work/delta.qcow2"
 finalize_delta "$work/work.raw" "$chain_head" "$delta"
 rm -f "$work/work.raw" "$work"/chain-*.qcow2
 
+# `version` and `description` are optional.
+meta_args=(--title "$img_title" --name "$name")
+if [ -n "$img_version" ]; then
+	meta_args+=(--version "$img_version")
+fi
+if [ -n "$img_description" ]; then
+	meta_args+=(--description "$img_description")
+fi
+
 if [ "$is_root" = yes ]; then
 	layer_args=()
 	if [ -n "$boot_blob" ]; then
@@ -284,18 +293,11 @@ if [ "$is_root" = yes ]; then
 	fi
 	layer_args+=(--layer "root=$layer0" --layer "root=$delta")
 
-	assemble_args=(assemble --title "$img_title" --name "$name" -o "$out")
-	if [ -n "$img_version" ]; then
-		assemble_args+=(--version "$img_version")
-	fi
-	if [ -n "$img_description" ]; then
-		assemble_args+=(--description "$img_description")
-	fi
-	"$image_util" "${assemble_args[@]}" "${layer_args[@]}"
+	"$image_util" assemble "${meta_args[@]}" -o "$out" "${layer_args[@]}"
 	root_layers=2
 else
 	append_args=(append --lower "$lower_layout" --layer "root=$delta"
-		--title "$img_title" --name "$name" -o "$out")
+		"${meta_args[@]}" -o "$out")
 	if [ -n "$lower_ref" ]; then
 		append_args+=(--base-name "$lower_ref")
 	fi
