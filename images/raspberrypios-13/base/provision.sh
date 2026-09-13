@@ -10,7 +10,9 @@ cat >/etc/initramfs-tools/conf.d/10-tml-netboot <<'CONF'
 MODULES=most
 CONF
 
-apt-get install -y nbd-client systemd-resolved tmux
+apt-get install -y nbd-client systemd-resolved vim tmux htop build-essential \
+    git usbutils pciutils nload nano gnupg bc mtr zip unzip wget curl gpg \
+    ca-certificates dbus
 
 # shellcheck disable=SC2016,SC2089,SC2090
 puppet_daemon_args='--transport tcp --tcp-control-socket-addr "$(ip route show 0.0.0.0/0 | cut -d" " -f3 | head -n1):3859"'
