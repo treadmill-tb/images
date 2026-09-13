@@ -25,7 +25,22 @@ usermod -a -G gpio tml
 cat >/etc/fstab <<'FSTAB'
 proc /proc proc defaults 0 0
 /dev/nbd0 / ext4 defaults,noatime,nodiratime 0 1
+/dev/nbd1 /boot/firmware vfat defaults,x-systemd.requires=tml-nbd-boot.service,x-systemd.after=tml-nbd-boot.service 0 2
 FSTAB
+
+# The boot file system is the image's `boot` NBD export, served by the same
+# host the root came from: the DHCP server, which is also the default gateway.
+cat >/etc/systemd/system/tml-nbd-boot.service <<'SERVICE'
+[Unit]
+Description=Attach the boot file system over NBD
+DefaultDependencies=no
+Before=boot-firmware.mount
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/sh -c 'exec nbd-client "$(ip -4 route show default | cut -d" " -f3 | head -n1)" -N boot /dev/nbd1'
+ExecStop=/usr/sbin/nbd-client -d /dev/nbd1
+SERVICE
 
 cat >/boot/firmware/cmdline.txt <<'CMDLINE'
 console=serial0,115200 ip=dhcp root=/dev/nbd0 rw nbdroot=dhcp,root,nbd0 rootfstype=ext4 fsckfix rootwait net.ifnames=0 loglevel=7
