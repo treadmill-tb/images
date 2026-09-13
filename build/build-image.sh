@@ -183,6 +183,7 @@ if [ -f "$image_dir/inputs.json" ]; then
 fi
 
 boot_blob=""
+boot_raw=""
 layer0=""
 lower_layout=""
 
@@ -202,13 +203,14 @@ if [ "$is_root" = yes ]; then
 	if [ "$img_type" = disk ]; then
 		mv "$download" "$layer0"
 	else
+		boot_blob="$work/boot.qcow2"
 		sd_img="$work/sd.img"
 		xz -dc "$download" >"$sd_img" || die "failed to decompress $vendor_url"
 		rm -f "$download"
 
-		boot_blob="$work/boot.fat"
+		boot_raw="$work/boot.raw"
 		root_raw="$work/root.raw"
-		split_sd_image "$sd_img" "$boot_blob" "$root_raw"
+		split_sd_image "$sd_img" "$boot_raw" "$root_raw"
 		qemu-img convert -f raw -O qcow2 "$root_raw" "$layer0"
 		rm -f "$sd_img" "$root_raw"
 	fi
@@ -246,7 +248,7 @@ if [ "$img_type" = disk ]; then
 	mount_fstab_parts "$mount_root"
 elif [ -n "$boot_blob" ]; then
 	$SUDO mkdir -p "$mount_root/boot/firmware"
-	$SUDO mount -t vfat -o loop "$boot_blob" "$mount_root/boot/firmware"
+	$SUDO mount -t vfat -o loop "$boot_raw" "$mount_root/boot/firmware"
 fi
 
 build_nspawn_binds "$partitioned"
@@ -276,6 +278,11 @@ disk_cleanup
 delta="$work/delta.qcow2"
 finalize_delta "$work/work.raw" "$chain_head" "$delta"
 rm -f "$work/work.raw" "$work"/chain-*.qcow2
+
+if [ -n "$boot_blob" ]; then
+	qemu-img convert -c -f raw -O qcow2 "$boot_raw" "$boot_blob"
+	rm -f "$boot_raw"
+fi
 
 # `version` and `description` are optional.
 meta_args=(--title "$img_title" --name "$name")
