@@ -182,9 +182,18 @@ if [ -f "$image_dir/inputs.json" ]; then
 	' "$image_dir/inputs.json" >>"$inputs_env"
 fi
 
-boot_blob=""
-boot_raw=""
-layer0=""
+# The volumes an image consists of, each the chain of the role it provides.
+# A `disk` is one partitioned disk. An `sd` card splits into its root and boot
+# file systems, which are netbooted as separate volumes. The first volume is
+# the one that is grown and mounted at /.
+if [ "$img_type" = disk ]; then
+	roles=(disk)
+else
+	roles=(rootfs bootfs)
+fi
+primary="${roles[0]}"
+
+declare -A vol_layer0=() vol_head=() vol_chain_len=()
 lower_layout=""
 
 if [ "$is_root" = yes ]; then
@@ -199,22 +208,28 @@ if [ "$is_root" = yes ]; then
 	echo "$vendor_sha  $download" | sha256sum -c - >/dev/null ||
 		die "checksum mismatch for $vendor_url"
 
-	layer0="$work/layer0.qcow2"
 	if [ "$img_type" = disk ]; then
-		mv "$download" "$layer0"
+		vol_layer0[disk]="$work/disk.layer0.qcow2"
+		mv "$download" "${vol_layer0[disk]}"
 	else
-		boot_blob="$work/boot.qcow2"
 		sd_img="$work/sd.img"
 		xz -dc "$download" >"$sd_img" || die "failed to decompress $vendor_url"
 		rm -f "$download"
 
-		boot_raw="$work/boot.raw"
-		root_raw="$work/root.raw"
-		split_sd_image "$sd_img" "$boot_raw" "$root_raw"
-		qemu-img convert -f raw -O qcow2 "$root_raw" "$layer0"
-		rm -f "$sd_img" "$root_raw"
+		split_sd_image "$sd_img" "$work/bootfs.vendor.raw" "$work/rootfs.vendor.raw"
+		rm -f "$sd_img"
+		vol_layer0[rootfs]="$work/rootfs.layer0.qcow2"
+		qemu-img convert -f raw -O qcow2 "$work/rootfs.vendor.raw" "${vol_layer0[rootfs]}"
+		vol_layer0[bootfs]="$work/bootfs.layer0.qcow2"
+		qemu-img convert -c -f raw -O qcow2 "$work/bootfs.vendor.raw" "${vol_layer0[bootfs]}"
+		rm -f "$work/rootfs.vendor.raw" "$work/bootfs.vendor.raw"
 	fi
-	flatten_chain "$work/work.raw" "$layer0"
+
+	for role in "${roles[@]}"; do
+		flatten_chain "$work/$role.raw" "$role" "${vol_layer0[$role]}"
+		vol_head[$role]="$chain_head"
+		vol_chain_len[$role]=1
+	done
 else
 	if [ -n "$lower_ref" ]; then
 		lower_layout="$work/lower"
@@ -227,17 +242,22 @@ else
 	"$image_util" verify "$lower_layout" --name "$name lower" ||
 		die "the lower image did not verify"
 
-	mapfile -t lower_blobs < <(layout_root_blobs "$lower_layout")
-	[ "${#lower_blobs[@]}" -gt 0 ] || die "the lower image has no role=root layer"
-	flatten_chain "$work/work.raw" "${lower_blobs[@]}"
+	for role in "${roles[@]}"; do
+		blobs="$(layout_chain_blobs "$lower_layout" "$role")" ||
+			die "the lower image has no usable $role chain"
+		mapfile -t lower_blobs <<<"$blobs"
+		flatten_chain "$work/$role.raw" "$role" "${lower_blobs[@]}"
+		vol_head[$role]="$chain_head"
+		vol_chain_len[$role]="${#lower_blobs[@]}"
+	done
 fi
 
 if [ -n "$grow_bytes" ]; then
-	echo "build-image: growing the working image by $grow_bytes bytes" >&2
-	grow_raw "$work/work.raw" "$grow_bytes"
+	echo "build-image: growing $primary by $grow_bytes bytes" >&2
+	grow_raw "$work/$primary.raw" "$grow_bytes"
 fi
 
-attach_loop "$work/work.raw" "$partitioned"
+attach_loop "$work/$primary.raw" "$partitioned"
 if [ -n "$grow_bytes" ]; then
 	resize_root "$partitioned"
 fi
@@ -246,27 +266,16 @@ mount_root="$(mktemp -d)"
 $SUDO mount "$(root_partition "$partitioned")" "$mount_root"
 if [ "$img_type" = disk ]; then
 	mount_fstab_parts "$mount_root"
-elif [ -n "$boot_blob" ]; then
+else
+	# noatime: reading a file must not change the file system, or every image
+	# would ship a boot delta.
 	$SUDO mkdir -p "$mount_root/boot/firmware"
-	$SUDO mount -t vfat -o loop "$boot_raw" "$mount_root/boot/firmware"
+	$SUDO mount -t vfat -o loop,noatime "$work/bootfs.raw" "$mount_root/boot/firmware"
 fi
 
 build_nspawn_binds "$partitioned"
 
-boot_before=""
-if [ "$img_type" = sd ] && [ -z "$boot_blob" ]; then
-	boot_before="$(boot_fingerprint "$mount_root")"
-fi
-
 provision "$mount_root" "$image_dir" "$payload_dir" "$inputs_env"
-
-if [ -n "$boot_before" ] && [ "$(boot_fingerprint "$mount_root")" != "$boot_before" ]; then
-	die "\
-$name changed /boot or /lib/modules, but it does not own this chain's
-role=boot layer. A boot layer is standalone and carried by digest into every
-descendant, so replacing it here would break blob sharing. Move the kernel or
-initramfs work into the image that produces the boot layer."
-fi
 
 # ext4 defers discarding just-freed blocks until the transaction that freed them
 # commits, so fstrim on its own skips everything this image deleted and the trim
@@ -275,14 +284,27 @@ $SUDO sync -f "$mount_root"
 $SUDO fstrim -v "$mount_root" >&2
 disk_cleanup
 
-delta="$work/delta.qcow2"
-finalize_delta "$work/work.raw" "$chain_head" "$delta"
-rm -f "$work/work.raw" "$work"/chain-*.qcow2
-
-if [ -n "$boot_blob" ]; then
-	qemu-img convert -c -f raw -O qcow2 "$boot_raw" "$boot_blob"
-	rm -f "$boot_raw"
-fi
+# A root image starts every chain with its vendor layer. Each volume the image
+# changed gets a layer on top of its chain; an unchanged one gets none, since
+# an empty layer would only duplicate its lower's content.
+layer_args=()
+chain_args=()
+for role in "${roles[@]}"; do
+	if [ "$is_root" = yes ]; then
+		layer_args+=(--layer "$role=${vol_layer0[$role]}")
+	fi
+	if volume_unchanged "$work/$role.raw" "${vol_head[$role]}"; then
+		echo "build-image: $role is unchanged, adding no layer to it" >&2
+	else
+		delta="$work/$role.delta.qcow2"
+		finalize_delta "$work/$role.raw" "${vol_head[$role]}" "$delta"
+		layer_args+=(--layer "$role=$delta")
+		vol_chain_len[$role]=$((${vol_chain_len[$role]} + 1))
+	fi
+	rm -f "$work/$role.raw"
+	chain_args+=(--chain "$role=${vol_chain_len[$role]}")
+done
+rm -f "$work"/chain-*.qcow2
 
 # `version` and `description` are optional.
 meta_args=(--title "$img_title" --name "$name")
@@ -294,29 +316,16 @@ if [ -n "$img_description" ]; then
 fi
 
 if [ "$is_root" = yes ]; then
-	layer_args=()
-	if [ -n "$boot_blob" ]; then
-		layer_args+=(--layer "boot=$boot_blob")
-	fi
-	layer_args+=(--layer "root=$layer0" --layer "root=$delta")
-
 	"$image_util" assemble "${meta_args[@]}" -o "$out" "${layer_args[@]}"
-	root_layers=2
 else
-	append_args=(append --lower "$lower_layout" --layer "root=$delta"
-		"${meta_args[@]}" -o "$out")
+	append_args=(append --lower "$lower_layout" "${meta_args[@]}" -o "$out")
+	append_args+=(${layer_args[@]+"${layer_args[@]}"})
 	if [ -n "$lower_ref" ]; then
 		append_args+=(--base-name "$lower_ref")
 	fi
 	"$image_util" "${append_args[@]}"
-	root_layers=$((${#lower_blobs[@]} + 1))
 fi
 
-boot_layers=0
-if [ "$img_type" = sd ]; then
-	boot_layers=1
-fi
-"$image_util" verify "$out" --title "$img_title" --name "$name" \
-	--root-layers "$root_layers" --boot-layers "$boot_layers"
+"$image_util" verify "$out" --title "$img_title" --name "$name" "${chain_args[@]}"
 
 echo "build-image: $name -> $out (OK)" >&2

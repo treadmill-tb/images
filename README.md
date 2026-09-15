@@ -7,10 +7,12 @@ testbed. It contains a few pre-defined images, like:
 - Ubuntu Server 26.04 (in a base, Web IDE, and GH actions runner variant)
 - Raspberry Pi OS 13 (in a base, Web IDE, and GH actions runner variant)
 
-Images are a custom OCI-based format defining stacks of layered QCOW2 images
-(which enables efficient deduplication and extension). Each image's `base`
-variant defines the root of this stack, and the other layers on top simply
-extend it, sharing this base layer.
+Images are a custom OCI-based format. An image provides one or more roles, each
+a stack of layered QCOW2 images (which enables efficient deduplication and
+extension): a `disk` image provides a `disk` for VMs, and an `sd` image provides
+the `rootfs` and `bootfs` file systems of an NBD-netbooted board. Each image's
+`base` variant defines the root of these stacks, and the other variants add a
+layer on top of each stack they change, sharing the layers below.
 
 Building these images requires a privileged Linux host: the scripts use
 `losetup`, `mount` and `systemd-nspawn`, escalating through `sudo` per
