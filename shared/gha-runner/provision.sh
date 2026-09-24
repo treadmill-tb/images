@@ -41,8 +41,8 @@ systemctl enable install-gh-actions-runner.service
 cat >/etc/systemd/system/gh-actions-runner.service <<'SERVICE'
 [Unit]
 Description=GitHub Actions Runner
-After=network.target tml-puppet.service install-gh-actions-runner.service
-Wants=tml-puppet.service install-gh-actions-runner.service
+After=network.target tml-daemon.service install-gh-actions-runner.service
+Wants=tml-daemon.service install-gh-actions-runner.service
 
 [Service]
 ExecStartPre=/bin/bash -Eexuo pipefail -c 'cp /opt/gh-actions-runner/bin/runsvc.sh /opt/gh-actions-runner/runsvc.sh && chown tml:tml /opt/gh-actions-runner/runsvc.sh && if [ -f /opt/gh-actions-runner/.credentials ]; then exit 0; fi && if [ -f /run/tml/parameters/gh-actions-runner-encoded-jit-config ]; then exit 0; fi && REPO_URL=$(cat /run/tml/parameters/gh-actions-runner-repo-url) && RUNNER_TOKEN=$(cat /run/tml/parameters/gh-actions-runner-token) && JOB_ID=$(cat /run/tml/job-id) && /opt/gh-actions-runner/config.sh --url $REPO_URL --token $RUNNER_TOKEN --name tml-gh-actions-runner-$JOB_ID --labels tml-gh-actions-runner-$JOB_ID --unattended --ephemeral'

@@ -68,8 +68,8 @@
 
           packages = {
             inherit (tml) image-util;
-            tml-puppet-x86_64 = tml.tml-puppet-static-x86_64;
-            tml-puppet-aarch64 = tml.tml-puppet-static-aarch64;
+            tml-x86_64 = tml.tml-static-x86_64;
+            tml-aarch64 = tml.tml-static-aarch64;
             tml-caddy-x86_64 = tml.tml-caddy-static-x86_64;
             tml-caddy-aarch64 = tml.tml-caddy-static-aarch64;
           };

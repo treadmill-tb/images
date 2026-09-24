@@ -38,10 +38,10 @@ jobs:
           set -euxo pipefail
           arch="$(jq -r '.arch' <<<"$ENTRY")"
           image_util="$(nix build --print-build-logs --no-link --print-out-paths '.#image-util')"
-          puppet="$(nix build --print-build-logs --no-link --print-out-paths ".#tml-puppet-$arch")"
+          tml="$(nix build --print-build-logs --no-link --print-out-paths ".#tml-$arch")"
           caddy="$(nix build --print-build-logs --no-link --print-out-paths ".#tml-caddy-$arch")"
           echo "image_util=$image_util" >> "$GITHUB_OUTPUT"
-          echo "puppet=$puppet" >> "$GITHUB_OUTPUT"
+          echo "tml=$tml" >> "$GITHUB_OUTPUT"
           echo "caddy=$caddy" >> "$GITHUB_OUTPUT"
 
       - name: Install the image build toolchain
@@ -73,7 +73,7 @@ jobs:
             args+=(--lower "$RUNNER_TEMP/lower")
           fi
           ./build/build-image.sh "${args[@]}" \
-            --payload "${{ steps.bins.outputs.puppet }}/bin/tml-puppet" \
+            --payload "${{ steps.bins.outputs.tml }}/bin/tml" \
             --payload "${{ steps.bins.outputs.caddy }}/bin/caddy" \
             --image-util "${{ steps.bins.outputs.image_util }}/bin/image-util" \
             --work "$RUNNER_TEMP" \
