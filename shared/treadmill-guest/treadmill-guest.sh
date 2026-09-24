@@ -4,7 +4,7 @@ set -eu
 : "${TML_PAYLOAD_DIR:?}"
 : "${TML_IMAGE_DIR:?}"
 : "${TML_ARCH:?}"
-: "${daemon_args:?set daemon_args before running this layer}"
+: "${daemon_args?set daemon_args before running this layer}"
 : "${serial_consoles:?set serial_consoles before running this layer}"
 : "${rustup_init_url:?}"
 : "${rustup_init_sha256:?}"

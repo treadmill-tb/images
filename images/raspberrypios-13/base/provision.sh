@@ -15,7 +15,7 @@ apt-get install -y nbd-client systemd-resolved vim tmux htop build-essential \
     ca-certificates dbus
 
 # shellcheck disable=SC2016,SC2089,SC2090
-daemon_args='--transport tcp --tcp-control-socket-addr "$(ip route show 0.0.0.0/0 | cut -d" " -f3 | head -n1):3859"'
+daemon_args='--supervisor-url "http://$(ip route show 0.0.0.0/0 | cut -d" " -f3 | head -n1):3859"'
 serial_consoles='ttyAMA0 ttyAMA10'
 # shellcheck disable=SC2090
 export daemon_args serial_consoles

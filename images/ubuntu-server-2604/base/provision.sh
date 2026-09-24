@@ -4,7 +4,7 @@ set -eu
 apt-get install -y vim tmux htop build-essential git usbutils pciutils nload \
 	nano gnupg bc mtr zip unzip wget curl gpg ca-certificates dbus
 
-daemon_args='--transport auto_discover'
+daemon_args=''
 serial_consoles='ttyS0'
 # shellcheck disable=SC2090
 export daemon_args serial_consoles
