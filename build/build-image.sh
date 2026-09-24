@@ -291,14 +291,14 @@ layer_args=()
 chain_args=()
 for role in "${roles[@]}"; do
 	if [ "$is_root" = yes ]; then
-		layer_args+=(--layer "$role=${vol_layer0[$role]}")
+		layer_args+=(--layer "$role=qcow2:${vol_layer0[$role]}")
 	fi
 	if volume_unchanged "$work/$role.raw" "${vol_head[$role]}"; then
 		echo "build-image: $role is unchanged, adding no layer to it" >&2
 	else
 		delta="$work/$role.delta.qcow2"
 		finalize_delta "$work/$role.raw" "${vol_head[$role]}" "$delta"
-		layer_args+=(--layer "$role=$delta")
+		layer_args+=(--layer "$role=qcow2:$delta")
 		vol_chain_len[$role]=$((${vol_chain_len[$role]} + 1))
 	fi
 	rm -f "$work/$role.raw"
