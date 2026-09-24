@@ -15,7 +15,7 @@ the `rootfs` and `bootfs` file systems of an NBD-netbooted board. Each image's
 layer on top of each stack they change, sharing the layers below.
 
 Building these images requires a privileged Linux host: the scripts use
-`losetup`, `mount` and `systemd-nspawn`, escalating through `sudo` per
+`qemu-nbd`, `mount` and `systemd-nspawn`, escalating through `sudo` per
 operation. Building an image for a foreign architecture requires `binfmt_misc`
 and `qemu-user-static` registered for it.
 

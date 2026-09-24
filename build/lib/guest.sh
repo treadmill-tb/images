@@ -9,10 +9,10 @@ nspawn_binds=()
 guest_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 build_nspawn_binds() { # <partitioned: yes|no>
-	nspawn_binds=(--bind="$loop_dev")
+	nspawn_binds=(--bind="$root_dev")
 	[ "$1" = yes ] || return 0
 	local part
-	for part in "${loop_dev}"p*; do
+	for part in "${root_dev}"p*; do
 		[ -b "$part" ] && nspawn_binds+=(--bind="$part")
 	done
 	nspawn_binds+=(--bind="$(build_dev_links):/dev/disk")
@@ -36,6 +36,7 @@ stage_image() { # <mnt> <image-dir> <payload-dir> <inputs-env>
 	$SUDO cp -aLT "$image_dir" "$staged/image"
 	$SUDO cp -aLT "$payload_dir" "$staged/payload"
 	$SUDO install -m 0644 "$inputs_env" "$staged/inputs.env"
+	$SUDO install -m 0755 "$here/guest/cleanup.sh" "$staged/cleanup.sh"
 
 	$SUDO tee "$staged/run.sh" >/dev/null <<-RUNNER
 		#!/bin/sh
@@ -83,6 +84,7 @@ provision() { # <mnt> <image-dir> <payload-dir> <inputs-env>
 	resolv_conf_borrow "$mnt"
 	nspawn_run "$mnt" /bin/sh -c 'DEBIAN_FRONTEND=noninteractive apt-get update'
 	nspawn_run "$mnt" "$guest_build_dir/run.sh"
+	nspawn_run "$mnt" "$guest_build_dir/cleanup.sh"
 	resolv_conf_restore "$mnt"
 	$SUDO rm -rf "$mnt$guest_build_dir"
 }

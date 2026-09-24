@@ -48,7 +48,7 @@ jobs:
           set -euxo pipefail
           sudo apt-get update
           sudo apt-get install -y \
-            systemd-container qemu-utils cloud-guest-utils e2fsprogs \
+            systemd-container qemu-utils cloud-guest-utils e2fsprogs fdisk \
             xz-utils util-linux curl jq skopeo
 
       - name: Download the lower layout
