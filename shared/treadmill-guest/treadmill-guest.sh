@@ -77,8 +77,7 @@ StartLimitIntervalSec=0
 [Service]
 Type=notify
 NotifyAccess=main
-ExecStartPre=/bin/mkdir -p /run/tml/parameters
-ExecStart=/bin/bash -c 'exec /usr/local/bin/tml daemon ${daemon_args} --job-info-dir /run/tml --parameters-dir /run/tml/parameters --services-dir /etc/tml/services.d --caddy-config /run/tml/caddy/services.caddy --caddy-reload-command "systemctl --no-block reload-or-restart tml-caddy.service"'
+ExecStart=/bin/bash -c 'exec /usr/local/bin/tml daemon ${daemon_args} --caddy-config /run/tml/caddy/services.caddy --caddy-reload-command "systemctl --no-block reload-or-restart tml-caddy.service"'
 Restart=always
 RestartSec=5s
 SERVICE
