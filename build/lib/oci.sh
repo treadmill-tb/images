@@ -4,9 +4,11 @@
 # layout, we don't encode the relative or absolute path to the qcow2 backing
 # file and set it to the empty string. We invoke qemu or qemu-nbd with special
 # arguments to assemble the chain at runtime.
+compress_opts=(-c -o compression_type=zstd,cluster_size=128k)
+
 finalize_delta() { # <overlay> <lower-head-blob> <out-delta>
 	local overlay="$1" lower="$2" out="$3"
-	qemu-img convert -c -f qcow2 -O qcow2 -B "$lower" -F qcow2 "$overlay" "$out"
+	qemu-img convert "${compress_opts[@]}" -f qcow2 -O qcow2 -B "$lower" -F qcow2 "$overlay" "$out"
 	qemu-img rebase -u -b "" -f qcow2 "$out"
 }
 

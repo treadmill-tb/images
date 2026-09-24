@@ -211,16 +211,17 @@ if [ "$is_root" = yes ]; then
 
 	if [ "$img_type" = disk ]; then
 		vol_layer0[disk]="$work/disk.layer0.qcow2"
-		mv "$download" "${vol_layer0[disk]}"
+		qemu-img convert "${compress_opts[@]}" -f qcow2 -O qcow2 "$download" "${vol_layer0[disk]}"
+		rm -f "$download"
 	else
 		sd_img="$work/sd.img"
 		xz -dc "$download" >"$sd_img" || die "failed to decompress $vendor_url"
 		rm -f "$download"
 
 		vol_layer0[bootfs]="$work/bootfs.layer0.qcow2"
-		convert_partition "$sd_img" 1 "${vol_layer0[bootfs]}" -c
+		convert_partition "$sd_img" 1 "${vol_layer0[bootfs]}" "${compress_opts[@]}"
 		vol_layer0[rootfs]="$work/rootfs.layer0.qcow2"
-		convert_partition "$sd_img" 2 "${vol_layer0[rootfs]}"
+		convert_partition "$sd_img" 2 "${vol_layer0[rootfs]}" "${compress_opts[@]}"
 		rm -f "$sd_img"
 	fi
 
