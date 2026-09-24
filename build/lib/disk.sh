@@ -85,7 +85,7 @@ nbd_attach() { # <qcow2> <partitioned: yes|no>
 
 nbd_detach() { # <dev>
 	local dev="$1" pidfile="$work/${1##*/}.pid" pid="" i
-	[ -f "$pidfile" ] && pid="$(cat "$pidfile")"
+	[ -f "$pidfile" ] && pid="$($SUDO cat "$pidfile")"
 	$SUDO "$qemu_nbd" --disconnect "$dev" >/dev/null 2>&1 || true
 	[ -n "$pid" ] || return 0
 	for i in $(seq 100); do
