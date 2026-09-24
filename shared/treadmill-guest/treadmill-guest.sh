@@ -4,7 +4,7 @@ set -eu
 : "${TML_PAYLOAD_DIR:?}"
 : "${TML_IMAGE_DIR:?}"
 : "${TML_ARCH:?}"
-: "${puppet_daemon_args:?set puppet_daemon_args before running this layer}"
+: "${daemon_args?set daemon_args before running this layer}"
 : "${serial_consoles:?set serial_consoles before running this layer}"
 : "${rustup_init_url:?}"
 : "${rustup_init_sha256:?}"
@@ -20,7 +20,7 @@ fetch_verified() {
 	echo "$2  $3" | sha256sum -c -
 }
 
-install -m 0755 "$TML_PAYLOAD_DIR/tml-puppet" /usr/local/bin/tml-puppet
+install -m 0755 "$TML_PAYLOAD_DIR/tml" /usr/local/bin/tml
 install -m 0755 "$TML_PAYLOAD_DIR/caddy" /usr/local/bin/caddy
 
 fetch_verified "$ttyd_url" "$ttyd_sha256" /usr/local/bin/ttyd
@@ -51,24 +51,24 @@ cat >/etc/udev/rules.d/99-tml.rules <<'RULES'
 SUBSYSTEM=="usb", GROUP="plugdev", TAG+="uaccess"
 RULES
 
-cat >/etc/dbus-1/system.d/dev.treadmill.Puppet.conf <<'DBUSCONF'
+cat >/etc/dbus-1/system.d/dev.treadmill.Daemon.conf <<'DBUSCONF'
 <!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN" "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
 <busconfig>
   <policy context="default">
-    <allow own="dev.treadmill.Puppet"/>
-    <allow send_destination="dev.treadmill.Puppet"/>
-    <allow receive_sender="dev.treadmill.Puppet"/>
+    <allow own="dev.treadmill.Daemon"/>
+    <allow send_destination="dev.treadmill.Daemon"/>
+    <allow receive_sender="dev.treadmill.Daemon"/>
   </policy>
 </busconfig>
 DBUSCONF
 
 mkdir -p /etc/tml/services.d
 
-# The heredoc is unquoted so ${puppet_daemon_args} expands here while a
+# The heredoc is unquoted so ${daemon_args} expands here while a
 # $(...) inside it stays literal for the unit's shell to evaluate at service
-# start. puppet_daemon_args must contain no single quote: the ExecStart body
+# start. daemon_args must contain no single quote: the ExecStart body
 # is wrapped in one.
-cat >/etc/systemd/system/tml-puppet.service <<SERVICE
+cat >/etc/systemd/system/tml-daemon.service <<SERVICE
 [Install]
 WantedBy=multi-user.target
 [Unit]
@@ -77,12 +77,11 @@ StartLimitIntervalSec=0
 [Service]
 Type=notify
 NotifyAccess=main
-ExecStartPre=/bin/mkdir -p /run/tml/parameters
-ExecStart=/bin/bash -c 'exec /usr/local/bin/tml-puppet daemon ${puppet_daemon_args} --job-info-dir /run/tml --parameters-dir /run/tml/parameters --services-dir /etc/tml/services.d --caddy-config /run/tml/caddy/services.caddy --caddy-reload-command "systemctl --no-block reload-or-restart tml-caddy.service"'
+ExecStart=/bin/bash -c 'exec /usr/local/bin/tml daemon ${daemon_args} --caddy-config /run/tml/caddy/services.caddy --caddy-reload-command "systemctl --no-block reload-or-restart tml-caddy.service"'
 Restart=always
 RestartSec=5s
 SERVICE
-systemctl enable tml-puppet.service
+systemctl enable tml-daemon.service
 
 mkdir -p /etc/caddy
 cat >/etc/caddy/Caddyfile <<'CADDY'
@@ -102,8 +101,8 @@ cat >/etc/systemd/system/tml-caddy.service <<'SERVICE'
 [Install]
 WantedBy=multi-user.target
 [Unit]
-After=network.target tml-puppet.service
-Wants=tml-puppet.service
+After=network.target tml-daemon.service
+Wants=tml-daemon.service
 ConditionPathExists=/run/tml/caddy/services.caddy
 [Service]
 RuntimeDirectory=tml-caddy

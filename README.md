@@ -28,12 +28,12 @@ nix develop
 
 Use a command like the following to build an "image chain", which will build
 missing intermediate layers automatically. You need to supply the paths to
-pre-built injected payload files (like in this case, the Treadmill puppet binary
+pre-built injected payload files (like in this case, the Treadmill `tml` binary
 and the Caddy web server).
 
 ```bash
 ./build/build-chain.sh --image images/ubuntu-server-2604/webide \
-    --payload "$(nix build --no-link --print-out-paths .#tml-puppet-x86_64)/bin/tml-puppet" \
+    --payload "$(nix build --no-link --print-out-paths .#tml-x86_64)/bin/tml" \
     --payload "$(nix build --no-link --print-out-paths .#tml-caddy-x86_64)/bin/caddy" \
     -o out/ubuntu-webide
 ```

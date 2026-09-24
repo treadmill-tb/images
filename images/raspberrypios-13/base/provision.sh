@@ -11,14 +11,14 @@ MODULES=most
 CONF
 
 apt-get install -y nbd-client systemd-resolved vim tmux htop build-essential \
-    git usbutils pciutils nload nano gnupg bc mtr zip unzip wget curl gpg \
-    ca-certificates dbus
+	git usbutils pciutils nload nano gnupg bc mtr zip unzip wget curl gpg \
+	ca-certificates dbus
 
 # shellcheck disable=SC2016,SC2089,SC2090
-puppet_daemon_args='--transport tcp --tcp-control-socket-addr "$(ip route show 0.0.0.0/0 | cut -d" " -f3 | head -n1):3859"'
+daemon_args='--supervisor-url "http://$(ip route show 0.0.0.0/0 | cut -d" " -f3 | head -n1):3859"'
 serial_consoles='ttyAMA0 ttyAMA10'
 # shellcheck disable=SC2090
-export puppet_daemon_args serial_consoles
+export daemon_args serial_consoles
 "$TML_IMAGE_DIR/treadmill-guest.sh"
 
 usermod -a -G dialout tml
