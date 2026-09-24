@@ -36,6 +36,7 @@ stage_image() { # <mnt> <image-dir> <payload-dir> <inputs-env>
 	$SUDO cp -aLT "$image_dir" "$staged/image"
 	$SUDO cp -aLT "$payload_dir" "$staged/payload"
 	$SUDO install -m 0644 "$inputs_env" "$staged/inputs.env"
+	$SUDO install -m 0755 "$here/guest/cleanup.sh" "$staged/cleanup.sh"
 
 	$SUDO tee "$staged/run.sh" >/dev/null <<-RUNNER
 		#!/bin/sh
@@ -83,6 +84,7 @@ provision() { # <mnt> <image-dir> <payload-dir> <inputs-env>
 	resolv_conf_borrow "$mnt"
 	nspawn_run "$mnt" /bin/sh -c 'DEBIAN_FRONTEND=noninteractive apt-get update'
 	nspawn_run "$mnt" "$guest_build_dir/run.sh"
+	nspawn_run "$mnt" "$guest_build_dir/cleanup.sh"
 	resolv_conf_restore "$mnt"
 	$SUDO rm -rf "$mnt$guest_build_dir"
 }

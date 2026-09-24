@@ -90,7 +90,8 @@
                   shellcheck -x --source-path=SCRIPTDIR \
                     build/build-image.sh build/build-chain.sh tools/ci/plan.sh
                   shellcheck --shell=sh shared/*/provision.sh \
-                    shared/treadmill-guest/treadmill-guest.sh images/*/base/provision.sh
+                    shared/treadmill-guest/treadmill-guest.sh images/*/base/provision.sh \
+                    build/guest/cleanup.sh
                   shellcheck shared/treadmill-guest/expandroot.sh \
                     shared/gha-runner/install-gh-actions-runner.sh
                   touch $out
@@ -105,7 +106,7 @@
                     tools/ci/plan.sh
                   shfmt --diff --language-dialect posix --indent 0 \
                     shared/*/provision.sh shared/treadmill-guest/treadmill-guest.sh \
-                    images/*/base/provision.sh
+                    images/*/base/provision.sh build/guest/cleanup.sh
                   touch $out
                 '';
           };
