@@ -18,12 +18,38 @@ fetch_lower_ref() { # <ref> <out-layout>
 	skopeo copy "${args[@]}" "docker://$ref" "oci:$out" >&2
 }
 
-layout_root_blobs() { # <layout>
-	local layout="$1" manifest
+# Only add a delta for a volume whose content changed: an unchanged volume's
+# delta would be empty, and so byte-identical to any other empty delta.
+volume_unchanged() { # <work.raw> <lower-head-blob>
+	local raw="$1" head="$2" head_size status=0
+	head_size="$(qemu-img info --output=json "$head" | jq -e '."virtual-size"')" ||
+		die "cannot read the virtual size of $head"
+	[ "$(stat -c%s "$raw")" = "$head_size" ] || return 1
+	qemu-img compare -q -f raw -F qcow2 "$raw" "$head" || status=$?
+	case "$status" in
+	0) return 0 ;;
+	1) return 1 ;;
+	*) die "failed to compare $raw against $head" ;;
+	esac
+}
+
+# The blob paths of a role's qcow2 chain, base first, following each layer's
+# `dev.treadmill.qcow2.lower` down from the layer carrying the role.
+layout_chain_blobs() { # <layout> <role>
+	local layout="$1" role="$2" manifest
 	manifest="$(layout_manifest_path "$layout")"
-	jq -r --arg dir "$layout/blobs/sha256" '
-		.layers[]
-		| select(.annotations["dev.treadmill.role"] == "root")
+	jq -er --arg dir "$layout/blobs/sha256" --arg role "$role" '
+		(.layers | map({key: .digest, value: .}) | from_entries) as $by_digest
+		| [.layers[] | select(.annotations["dev.treadmill.role"] == $role)]
+		| if length == 1 then .[0] else error("no single \($role) head") end
+		| [recurse(
+			.annotations["dev.treadmill.qcow2.lower"] as $lower
+			| if $lower then $by_digest[$lower] // error("missing lower \($lower)")
+			  else empty end
+		  )]
+		| if all(.mediaType == "application/vnd.treadmill.qcow2") then .
+		  else error("the \($role) chain is not all qcow2") end
+		| reverse[]
 		| $dir + "/" + (.digest | sub("^sha256:"; ""))
 	' "$manifest"
 }

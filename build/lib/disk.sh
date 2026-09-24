@@ -24,17 +24,18 @@ disk_cleanup() {
 # layout, we don't encode the relative or absolute path to the qcow2 backing
 # file and set it to the empty string. We invoke qemu or qemu-nbd with special
 # arguments to assemble the chain at runtime. Here, we do the inverse and
-# materialize the chain, such that we can mount it.
+# materialize the chain, such that we can mount it. `chain_head` is left naming
+# the relinked head, which a delta is computed against.
 chain_head=""
-flatten_chain() {
-	local out="$1"
-	shift
+flatten_chain() { # <out-raw> <tag> <blob, base first>...
+	local out="$1" tag="$2"
+	shift 2
 	local i=0 prev="" blob copy
 	for blob in "$@"; do
 		if [ "$i" = 0 ]; then
 			prev="$blob"
 		else
-			copy="$work/chain-$i.qcow2"
+			copy="$work/chain-$tag-$i.qcow2"
 			cp --reflink=auto "$blob" "$copy"
 			chmod +w "$copy"
 			qemu-img rebase -u -b "$prev" -F qcow2 -f qcow2 "$copy"

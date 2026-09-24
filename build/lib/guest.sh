@@ -86,10 +86,3 @@ provision() { # <mnt> <image-dir> <payload-dir> <inputs-env>
 	resolv_conf_restore "$mnt"
 	$SUDO rm -rf "$mnt$guest_build_dir"
 }
-
-# A boot layer is standalone and shared by digest across every descendant, so
-# only the image that produces it may write /boot or install a kernel.
-boot_fingerprint() { # <mnt>
-	$SUDO find "$1/boot" "$1/lib/modules" -printf '%p %s\n' 2>/dev/null |
-		LC_ALL=C sort | sha256sum | cut -d' ' -f1
-}
