@@ -76,10 +76,11 @@ command -v "$image_util" >/dev/null || [ -x "$image_util" ] ||
 SUDO=""
 [ "$(id -u)" = 0 ] || SUDO=sudo
 
-for tool in qemu-img losetup partx blkid mount umount fstrim growpart resize2fs \
-	e2fsck systemd-nspawn curl sha256sum jq xz; do
+for tool in qemu-img qemu-nbd sfdisk partx blkid mount umount findmnt fstrim \
+	growpart resize2fs e2fsck systemd-nspawn curl sha256sum jq xz; do
 	command -v "$tool" >/dev/null || die "missing required tool: $tool"
 done
+qemu_nbd="$(command -v qemu-nbd)"
 
 # shellcheck source=lib/disk.sh
 . "$here/lib/disk.sh"
@@ -193,7 +194,7 @@ else
 fi
 primary="${roles[0]}"
 
-declare -A vol_layer0=() vol_head=() vol_chain_len=()
+declare -A vol_layer0=() vol_head=() vol_chain_len=() vol_overlay=() vol_dev=()
 lower_layout=""
 
 if [ "$is_root" = yes ]; then
@@ -216,17 +217,15 @@ if [ "$is_root" = yes ]; then
 		xz -dc "$download" >"$sd_img" || die "failed to decompress $vendor_url"
 		rm -f "$download"
 
-		split_sd_image "$sd_img" "$work/bootfs.vendor.raw" "$work/rootfs.vendor.raw"
-		rm -f "$sd_img"
-		vol_layer0[rootfs]="$work/rootfs.layer0.qcow2"
-		qemu-img convert -f raw -O qcow2 "$work/rootfs.vendor.raw" "${vol_layer0[rootfs]}"
 		vol_layer0[bootfs]="$work/bootfs.layer0.qcow2"
-		qemu-img convert -c -f raw -O qcow2 "$work/bootfs.vendor.raw" "${vol_layer0[bootfs]}"
-		rm -f "$work/rootfs.vendor.raw" "$work/bootfs.vendor.raw"
+		convert_partition "$sd_img" 1 "${vol_layer0[bootfs]}" -c
+		vol_layer0[rootfs]="$work/rootfs.layer0.qcow2"
+		convert_partition "$sd_img" 2 "${vol_layer0[rootfs]}"
+		rm -f "$sd_img"
 	fi
 
 	for role in "${roles[@]}"; do
-		flatten_chain "$work/$role.raw" "$role" "${vol_layer0[$role]}"
+		link_chain "$role" "${vol_layer0[$role]}"
 		vol_head[$role]="$chain_head"
 		vol_chain_len[$role]=1
 	done
@@ -246,18 +245,32 @@ else
 		blobs="$(layout_chain_blobs "$lower_layout" "$role")" ||
 			die "the lower image has no usable $role chain"
 		mapfile -t lower_blobs <<<"$blobs"
-		flatten_chain "$work/$role.raw" "$role" "${lower_blobs[@]}"
+		link_chain "$role" "${lower_blobs[@]}"
 		vol_head[$role]="$chain_head"
 		vol_chain_len[$role]="${#lower_blobs[@]}"
 	done
 fi
 
+for role in "${roles[@]}"; do
+	vol_overlay[$role]="$work/$role.overlay.qcow2"
+	create_overlay "${vol_overlay[$role]}" "${vol_head[$role]}"
+done
+
 if [ -n "$grow_bytes" ]; then
 	echo "build-image: growing $primary by $grow_bytes bytes" >&2
-	grow_raw "$work/$primary.raw" "$grow_bytes"
+	grow_overlay "${vol_overlay[$primary]}" "$grow_bytes"
 fi
 
-attach_loop "$work/$primary.raw" "$partitioned"
+nbd_attach "${vol_overlay[$primary]}" "$partitioned"
+root_dev="$nbd_dev"
+for role in "${roles[@]}"; do
+	if [ "$role" = "$primary" ]; then
+		vol_dev[$role]="$root_dev"
+	else
+		nbd_attach "${vol_overlay[$role]}" no
+		vol_dev[$role]="$nbd_dev"
+	fi
+done
 if [ -n "$grow_bytes" ]; then
 	resize_root "$partitioned"
 fi
@@ -270,7 +283,7 @@ else
 	# noatime: reading a file must not change the file system, or every image
 	# would ship a boot delta.
 	$SUDO mkdir -p "$mount_root/boot/firmware"
-	$SUDO mount -t vfat -o loop,noatime "$work/bootfs.raw" "$mount_root/boot/firmware"
+	$SUDO mount -t vfat -o noatime "${vol_dev[bootfs]}" "$mount_root/boot/firmware"
 fi
 
 build_nspawn_binds "$partitioned"
@@ -280,8 +293,10 @@ provision "$mount_root" "$image_dir" "$payload_dir" "$inputs_env"
 # ext4 defers discarding just-freed blocks until the transaction that freed them
 # commits, so fstrim on its own skips everything this image deleted and the trim
 # does not reach the shipped blob. syncfs first.
-$SUDO sync -f "$mount_root"
-$SUDO fstrim -v "$mount_root" >&2
+findmnt -R -n -l -o TARGET "$mount_root" | while read -r mnt; do
+	$SUDO sync -f "$mnt"
+	$SUDO fstrim -v "$mnt" >&2
+done
 disk_cleanup
 
 # A root image starts every chain with its vendor layer. Each volume the image
@@ -293,15 +308,15 @@ for role in "${roles[@]}"; do
 	if [ "$is_root" = yes ]; then
 		layer_args+=(--layer "$role=qcow2:${vol_layer0[$role]}")
 	fi
-	if volume_unchanged "$work/$role.raw" "${vol_head[$role]}"; then
+	if volume_unchanged "${vol_overlay[$role]}" "${vol_head[$role]}"; then
 		echo "build-image: $role is unchanged, adding no layer to it" >&2
 	else
 		delta="$work/$role.delta.qcow2"
-		finalize_delta "$work/$role.raw" "${vol_head[$role]}" "$delta"
+		finalize_delta "${vol_overlay[$role]}" "${vol_head[$role]}" "$delta"
 		layer_args+=(--layer "$role=qcow2:$delta")
 		vol_chain_len[$role]=$((${vol_chain_len[$role]} + 1))
 	fi
-	rm -f "$work/$role.raw"
+	rm -f "${vol_overlay[$role]}"
 	chain_args+=(--chain "$role=${vol_chain_len[$role]}")
 done
 rm -f "$work"/chain-*.qcow2

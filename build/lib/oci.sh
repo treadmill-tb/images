@@ -4,9 +4,9 @@
 # layout, we don't encode the relative or absolute path to the qcow2 backing
 # file and set it to the empty string. We invoke qemu or qemu-nbd with special
 # arguments to assemble the chain at runtime.
-finalize_delta() { # <work.raw> <lower-head-blob> <out-delta>
-	local raw="$1" lower="$2" out="$3"
-	qemu-img convert -c -f raw -O qcow2 -B "$lower" -F qcow2 "$raw" "$out"
+finalize_delta() { # <overlay> <lower-head-blob> <out-delta>
+	local overlay="$1" lower="$2" out="$3"
+	qemu-img convert -c -f qcow2 -O qcow2 -B "$lower" -F qcow2 "$overlay" "$out"
 	qemu-img rebase -u -b "" -f qcow2 "$out"
 }
 
@@ -20,12 +20,14 @@ fetch_lower_ref() { # <ref> <out-layout>
 
 # Only add a delta for a volume whose content changed: an unchanged volume's
 # delta would be empty, and so byte-identical to any other empty delta.
-volume_unchanged() { # <work.raw> <lower-head-blob>
-	local raw="$1" head="$2" head_size status=0
+volume_unchanged() { # <overlay> <lower-head-blob>
+	local overlay="$1" head="$2" overlay_size head_size status=0
+	overlay_size="$(qemu-img info --output=json "$overlay" | jq -e '."virtual-size"')" ||
+		die "cannot read the virtual size of $overlay"
 	head_size="$(qemu-img info --output=json "$head" | jq -e '."virtual-size"')" ||
 		die "cannot read the virtual size of $head"
-	[ "$(stat -c%s "$raw")" = "$head_size" ] || return 1
-	qemu-img compare -q -f raw -F qcow2 "$raw" "$head" || status=$?
+	[ "$overlay_size" = "$head_size" ] || return 1
+	qemu-img compare -q -f qcow2 -F qcow2 "$overlay" "$head" || status=$?
 	case "$status" in
 	0) return 0 ;;
 	1) return 1 ;;

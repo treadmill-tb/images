@@ -9,10 +9,10 @@ nspawn_binds=()
 guest_path=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 build_nspawn_binds() { # <partitioned: yes|no>
-	nspawn_binds=(--bind="$loop_dev")
+	nspawn_binds=(--bind="$root_dev")
 	[ "$1" = yes ] || return 0
 	local part
-	for part in "${loop_dev}"p*; do
+	for part in "${root_dev}"p*; do
 		[ -b "$part" ] && nspawn_binds+=(--bind="$part")
 	done
 	nspawn_binds+=(--bind="$(build_dev_links):/dev/disk")

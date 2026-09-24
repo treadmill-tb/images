@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 
-loop_dev=""
+root_dev=""
+nbd_devs=()
 mount_root=""
 dev_links=""
 
@@ -10,10 +11,12 @@ disk_cleanup() {
 		rmdir "$mount_root" 2>/dev/null || true
 		mount_root=""
 	fi
-	if [ -n "$loop_dev" ]; then
-		$SUDO losetup -d "$loop_dev" 2>/dev/null || true
-		loop_dev=""
-	fi
+	local dev
+	for dev in ${nbd_devs[@]+"${nbd_devs[@]}"}; do
+		nbd_detach "$dev"
+	done
+	nbd_devs=()
+	root_dev=""
 	if [ -n "$dev_links" ]; then
 		rm -rf "$dev_links" 2>/dev/null || true
 		dev_links=""
@@ -23,13 +26,13 @@ disk_cleanup() {
 # Because the images get executed in place, from an unpredictable file system
 # layout, we don't encode the relative or absolute path to the qcow2 backing
 # file and set it to the empty string. We invoke qemu or qemu-nbd with special
-# arguments to assemble the chain at runtime. Here, we do the inverse and
-# materialize the chain, such that we can mount it. `chain_head` is left naming
-# the relinked head, which a delta is computed against.
+# arguments to assemble the chain at runtime. Here, we do the inverse and relink
+# the chain, such that an overlay can be put on top of it. `chain_head` is left
+# naming the relinked head.
 chain_head=""
-flatten_chain() { # <out-raw> <tag> <blob, base first>...
-	local out="$1" tag="$2"
-	shift 2
+link_chain() { # <tag> <blob, base first>...
+	local tag="$1"
+	shift
 	local i=0 prev="" blob copy
 	for blob in "$@"; do
 		if [ "$i" = 0 ]; then
@@ -44,28 +47,60 @@ flatten_chain() { # <out-raw> <tag> <blob, base first>...
 		i=$((i + 1))
 	done
 	chain_head="$prev"
-	qemu-img convert -f qcow2 -O raw "$prev" "$out"
 }
 
-grow_raw() { # <raw> <extra-bytes>
-	local raw="$1" extra="$2" size
-	size="$(stat -c%s "$raw")"
-	truncate -s "$((size + extra))" "$raw"
+create_overlay() { # <out> <lower-head>
+	qemu-img create -q -f qcow2 -b "$2" -F qcow2 "$1"
 }
 
-attach_loop() { # <raw> <partitioned: yes|no>
-	local raw="$1" partitioned="$2" args=(--find --show)
-	[ "$partitioned" = yes ] && args+=(--partscan)
-	loop_dev="$($SUDO losetup "${args[@]}" "$raw")"
-	[ -b "$loop_dev" ] || die "losetup did not yield a block device for $raw"
+grow_overlay() { # <overlay> <extra-bytes>
+	qemu-img resize -q -f qcow2 "$1" "+$2"
+}
+
+nbd_dev=""
+nbd_attach() { # <qcow2> <partitioned: yes|no>
+	local image="$1" partitioned="$2" sys dev i
+	[ -e /sys/module/nbd ] || $SUDO modprobe nbd max_part=16 ||
+		die "cannot load the nbd kernel module"
+	nbd_dev=""
+	for sys in /sys/block/nbd*; do
+		[ -e "$sys/pid" ] && continue
+		dev="/dev/${sys##*/}"
+		if $SUDO "$qemu_nbd" --connect="$dev" --format=qcow2 \
+			--discard=unmap --detect-zeroes=unmap \
+			--pid-file="$work/${dev##*/}.pid" "$image" 2>/dev/null; then
+			nbd_dev="$dev"
+			break
+		fi
+	done
+	[ -n "$nbd_dev" ] || die "found no free nbd device for $image"
+	nbd_devs+=("$nbd_dev")
+	[ "$partitioned" = yes ] || return 0
+	for i in $(seq 50); do
+		[ -b "${nbd_dev}p1" ] && return 0
+		sleep 0.1
+	done
+	die "$nbd_dev shows no partitions; is nbd loaded with max_part > 0?"
+}
+
+nbd_detach() { # <dev>
+	local dev="$1" pidfile="$work/${1##*/}.pid" pid="" i
+	[ -f "$pidfile" ] && pid="$(cat "$pidfile")"
+	$SUDO "$qemu_nbd" --disconnect "$dev" >/dev/null 2>&1 || true
+	[ -n "$pid" ] || return 0
+	for i in $(seq 100); do
+		[ -d "/proc/$pid" ] || return 0
+		sleep 0.1
+	done
+	die "qemu-nbd serving $dev did not exit"
 }
 
 resize_root() { # <partitioned: yes|no>
-	local target="$loop_dev"
+	local target="$root_dev"
 	if [ "$1" = yes ]; then
-		$SUDO growpart "$loop_dev" 1
-		$SUDO partx -u "$loop_dev"
-		target="${loop_dev}p1"
+		$SUDO growpart "$root_dev" 1
+		$SUDO partx -u "$root_dev"
+		target="${root_dev}p1"
 	fi
 	$SUDO e2fsck -fy "$target" >/dev/null 2>&1 || true
 	$SUDO resize2fs "$target"
@@ -73,19 +108,19 @@ resize_root() { # <partitioned: yes|no>
 
 root_partition() {
 	if [ "$1" = yes ]; then
-		echo "${loop_dev}p1"
+		echo "${root_dev}p1"
 	else
-		echo "$loop_dev"
+		echo "$root_dev"
 	fi
 }
 
-# Every device lookup is scoped to this loop device's own partitions.
+# Every device lookup is scoped to the root device's own partitions.
 #
 # The build host may be (or is, on GH actions) itself an Ubuntu cloud image
 # carrying the same `cloudimg-rootfs` label, and udev keeps one `by-label` link,
 # so binding the host's real /dev/disk could resolve to the host's disk. We must
 # definitely avoid that.
-resolve_loop_part() { # <fstab-spec>
+resolve_root_part() { # <fstab-spec>
 	local spec="$1" tag val part
 	case "$spec" in
 	LABEL=*) tag=LABEL val="${spec#LABEL=}" ;;
@@ -98,7 +133,7 @@ resolve_loop_part() { # <fstab-spec>
 		;;
 	*) return 1 ;;
 	esac
-	for part in "${loop_dev}"p*; do
+	for part in "${root_dev}"p*; do
 		[ -b "$part" ] || continue
 		if [ "$($SUDO blkid -s "$tag" -o value "$part" 2>/dev/null)" = "$val" ]; then
 			echo "$part"
@@ -119,8 +154,8 @@ mount_fstab_parts() { # <root-mnt>
 		slashes="${mp//[!\/]/}"
 		printf '%s\t%s\t%s\n' "${#slashes}" "$mp" "$spec"
 	done <"$fstab" | sort -n -k1,1 | while IFS="$(printf '\t')" read -r _ mp spec; do
-		dev="$(resolve_loop_part "$spec")" ||
-			die "cannot resolve fstab spec '$spec' (for $mp) to a $loop_dev partition"
+		dev="$(resolve_root_part "$spec")" ||
+			die "cannot resolve fstab spec '$spec' (for $mp) to a $root_dev partition"
 		$SUDO mkdir -p "$root$mp"
 		$SUDO mount "$dev" "$root$mp"
 	done
@@ -129,7 +164,7 @@ mount_fstab_parts() { # <root-mnt>
 build_dev_links() {
 	dev_links="$(mktemp -d)"
 	local part tag val dir
-	for part in "${loop_dev}"p*; do
+	for part in "${root_dev}"p*; do
 		[ -b "$part" ] || continue
 		for tag in UUID:by-uuid PARTUUID:by-partuuid LABEL:by-label PARTLABEL:by-partlabel; do
 			val="$($SUDO blkid -s "${tag%%:*}" -o value "$part" 2>/dev/null || true)"
@@ -142,14 +177,14 @@ build_dev_links() {
 	echo "$dev_links"
 }
 
-split_sd_image() { # <img> <out-fat> <out-root-raw>
-	local img="$1" out_fat="$2" out_root="$3"
-	attach_loop "$img" yes
-	[ -b "${loop_dev}p1" ] || die "$img has no partition 1 (expected a FAT boot partition)"
-	[ -b "${loop_dev}p2" ] || die "$img has no partition 2 (expected an ext4 root partition)"
-	$SUDO dd if="${loop_dev}p1" of="$out_fat" bs=4M status=none
-	$SUDO dd if="${loop_dev}p2" of="$out_root" bs=4M status=none
-	$SUDO chown "$(id -u):$(id -g)" "$out_fat" "$out_root"
-	$SUDO losetup -d "$loop_dev"
-	loop_dev=""
+convert_partition() { # <img> <number> <out-qcow2> <qemu-img convert args>...
+	local img="$1" number="$2" out="$3" offset size
+	shift 3
+	read -r offset size < <(sfdisk -J "$img" | jq -er --argjson n "$number" '
+		.partitiontable | (.sectorsize // 512) as $ss | .partitions[$n - 1] | select(.)
+		| "\(.start * $ss) \(.size * $ss)"') ||
+		die "$img has no partition $number"
+	qemu-img convert "$@" --image-opts \
+		"driver=raw,offset=$offset,size=$size,file.driver=file,file.filename=${img//,/,,}" \
+		-O qcow2 "$out"
 }
