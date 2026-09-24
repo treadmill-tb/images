@@ -30,7 +30,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: cachix/install-nix-action@v31
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+        with:
+          determinate: false
       - uses: cachix/cachix-action@v17
         with:
           name: treadmill-tb
@@ -44,6 +46,7 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     outputs:
+      prebuild: ${{ steps.matrix.outputs.prebuild }}
       level_0: ${{ steps.matrix.outputs.level_0 }}
       level_1: ${{ steps.matrix.outputs.level_1 }}
       level_2: ${{ steps.matrix.outputs.level_2 }}
@@ -66,6 +69,8 @@ jobs:
           set -euo pipefail
           # shellcheck disable=SC2086
           matrix="$(./tools/ci/plan.sh --matrix ${IMAGES:-})"
+          prebuild="$(jq -c '{include: [.[] | .include[] | {arch, runner}] | unique}' <<<"$matrix")"
+          echo "prebuild=$prebuild" >> "$GITHUB_OUTPUT"
           for level in 0 1 2 3 4 5 6 7 8 9; do
             value="$(jq -c --arg k "level_$level" '.[$k]' <<<"$matrix")"
             echo "level_$level=$value" >> "$GITHUB_OUTPUT"
@@ -79,8 +84,35 @@ jobs:
           fi
           echo "push=$push" >> "$GITHUB_OUTPUT"
 
-  level-0:
+  # Warm the cache once per architecture before any image jobs start.
+  prebuild:
     needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.prebuild) }}
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+        with:
+          determinate: false
+      - uses: cachix/cachix-action@v17
+        with:
+          name: treadmill-tb
+          skipPush: true
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7
+        with:
+          use-gha-cache: true
+          use-flakehub: false
+      - name: Build image-util and the payload binaries
+        env:
+          ARCH: ${{ matrix.arch }}
+        run: |
+          nix build --print-build-logs --no-link \
+            '.#image-util' ".#tml-$ARCH" ".#tml-caddy-$ARCH"
+
+  level-0:
+    needs: [plan, prebuild]
     if: ${{ fromJSON(needs.plan.outputs.level_0).include[0] != null }}
     strategy:
       fail-fast: false

@@ -21,11 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - uses: cachix/install-nix-action@v31
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+        with:
+          determinate: false
       - uses: cachix/cachix-action@v17
         with:
           name: treadmill-tb
           skipPush: true
+      - uses: DeterminateSystems/magic-nix-cache-action@84c0677f58dcedf3b91f8223ce36a9ea5b3c84b7
+        with:
+          use-gha-cache: true
+          use-flakehub: false
 
       # image-util and the guest payload binaries come from the treadmill flake;
       # everything build-image.sh execs comes from apt, so the arm runner does
