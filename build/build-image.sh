@@ -103,6 +103,13 @@ meta_env="$(jq -er '
 ' "$image_dir/image.json")" || die "$image_dir/image.json did not validate"
 eval "$meta_env"
 
+# A per-image summary takes precedence over legacy inline metadata.
+if [ -f "$image_dir/description.txt" ]; then
+	img_description="$(cat "$image_dir/description.txt")"
+	[ -n "$img_description" ] || die "$image_dir/description.txt is empty"
+fi
+img_version="${TML_IMAGE_VERSION:-$img_version}"
+
 parse_size() { # <size>
 	local v="$1" mult=1
 	case "$v" in
@@ -329,6 +336,16 @@ if [ -n "$img_version" ]; then
 fi
 if [ -n "$img_description" ]; then
 	meta_args+=(--description "$img_description")
+fi
+
+if [ -n "${TML_IMAGE_CREATED:-}" ]; then
+	meta_args+=(--created "$TML_IMAGE_CREATED")
+fi
+if [ -n "${TML_IMAGE_REVISION:-}" ]; then
+	meta_args+=(--revision "$TML_IMAGE_REVISION")
+fi
+if [ -n "${TML_IMAGE_DOCUMENTATION:-}" ]; then
+	meta_args+=(--documentation "$TML_IMAGE_DOCUMENTATION")
 fi
 
 if [ "$is_root" = yes ]; then

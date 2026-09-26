@@ -59,10 +59,19 @@ jobs:
           path: ${{ runner.temp }}/lower
 
       - name: Build the image
+        id: image
         env:
           ENTRY: ${{ inputs.entry }}
         run: |
           set -euxo pipefail
+          image="$(jq -r '.image' <<<"$ENTRY")"
+          export TML_IMAGE_CREATED TML_IMAGE_REVISION TML_IMAGE_VERSION TML_IMAGE_DOCUMENTATION
+          TML_IMAGE_CREATED="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          TML_IMAGE_REVISION="$(git rev-parse HEAD)"
+          TML_IMAGE_VERSION="$(date -u -d "$TML_IMAGE_CREATED" +%Y%m%dT%H%M%SZ)-${TML_IMAGE_REVISION:0:7}"
+          TML_IMAGE_DOCUMENTATION="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/blob/$TML_IMAGE_REVISION/$image/README.md"
+          echo "tag=$TML_IMAGE_VERSION" >> "$GITHUB_OUTPUT"
+          echo "revision=$TML_IMAGE_REVISION" >> "$GITHUB_OUTPUT"
           lower_ref="$(jq -r '.lower_ref' <<<"$ENTRY")"
           lower_artifact="$(jq -r '.lower_artifact' <<<"$ENTRY")"
           args=(--image "$(jq -r '.image' <<<"$ENTRY")")
@@ -97,6 +106,8 @@ jobs:
         if: ${{ inputs.push && fromJSON(inputs.entry).publish != '' }}
         env:
           ENTRY: ${{ inputs.entry }}
+          BUILD_TAG: ${{ steps.image.outputs.tag }}
+          BUILD_REVISION: ${{ steps.image.outputs.revision }}
         run: |
           set -euo pipefail
           # The runner ships a v1 /etc/containers/registries.conf, which this
@@ -107,6 +118,6 @@ jobs:
 
           owner="$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
           repo="ghcr.io/$owner/$(jq -r '.publish' <<<"$ENTRY")"
-          for tag in "$GITHUB_SHA" latest; do
+          for tag in "$BUILD_TAG" "$BUILD_REVISION" latest; do
             skopeo copy --all "oci:$RUNNER_TEMP/out" "docker://$repo:$tag"
           done
