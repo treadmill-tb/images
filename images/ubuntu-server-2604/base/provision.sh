@@ -57,6 +57,8 @@ serial_consoles='ttyS0'
 export daemon_args serial_consoles
 "$TML_IMAGE_DIR/treadmill-guest.sh"
 
+usermod -a -G dialout tml
+
 apt-get purge -y cloud-init
 rm -f /etc/netplan/*.yaml
 
