@@ -3,6 +3,6 @@
   "version": "26.04",
   "arch": "x86_64",
   "type": "disk",
-  "grow": "4G",
+  "grow": "6G",
   "publish": "ubuntu-server-2604"
 }

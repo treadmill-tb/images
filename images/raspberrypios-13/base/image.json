@@ -3,6 +3,6 @@
   "version": "13",
   "arch": "aarch64",
   "type": "sd",
-  "grow": "4G",
+  "grow": "6G",
   "publish": "raspberrypios-13"
 }
