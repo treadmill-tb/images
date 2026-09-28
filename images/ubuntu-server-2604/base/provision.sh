@@ -1,8 +1,55 @@
 #!/bin/sh
 set -eu
 
-apt-get install -y vim tmux htop build-essential git usbutils pciutils nload \
-	nano gnupg bc mtr zip unzip wget curl gpg ca-certificates dbus
+apt-get install -y \
+	bc \
+	build-essential \
+	ca-certificates \
+	cmake \
+	curl \
+	dbus \
+	device-tree-compiler \
+	dfu-util \
+	file \
+	gcc-arm-none-eabi \
+	gcc-riscv64-unknown-elf \
+	gdb-multiarch \
+	git \
+	gnupg \
+	gpg \
+	gpiod \
+	htop \
+	i2c-tools \
+	jq \
+	libnewlib-arm-none-eabi \
+	libstdc++-arm-none-eabi-newlib \
+	libudev-dev \
+	libusb-1.0-0-dev \
+	libzmq3-dev \
+	lsof \
+	minicom \
+	mtr-tiny \
+	nano \
+	ninja-build \
+	nload \
+	openocd \
+	pciutils \
+	picocom \
+	picolibc-riscv64-unknown-elf \
+	pipx \
+	pkg-config \
+	rsync \
+	socat \
+	stlink-tools \
+	strace \
+	tio \
+	tmux \
+	unzip \
+	usbutils \
+	vim \
+	wget \
+	xxd \
+	zip
 
 daemon_args=''
 serial_consoles='ttyS0'

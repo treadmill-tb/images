@@ -10,9 +10,57 @@ cat >/etc/initramfs-tools/conf.d/10-tml-netboot <<'CONF'
 MODULES=most
 CONF
 
-apt-get install -y nbd-client systemd-resolved vim tmux htop build-essential \
-	git usbutils pciutils nload nano gnupg bc mtr zip unzip wget curl gpg \
-	ca-certificates dbus
+apt-get install -y nbd-client systemd-resolved
+
+apt-get install -y \
+	bc \
+	build-essential \
+	ca-certificates \
+	cmake \
+	curl \
+	dbus \
+	device-tree-compiler \
+	dfu-util \
+	file \
+	gcc-arm-none-eabi \
+	gcc-riscv64-unknown-elf \
+	gdb-multiarch \
+	git \
+	gnupg \
+	gpg \
+	gpiod \
+	htop \
+	i2c-tools \
+	jq \
+	libnewlib-arm-none-eabi \
+	libstdc++-arm-none-eabi-newlib \
+	libudev-dev \
+	libusb-1.0-0-dev \
+	libzmq3-dev \
+	lsof \
+	minicom \
+	mtr-tiny \
+	nano \
+	ninja-build \
+	nload \
+	openocd \
+	pciutils \
+	picocom \
+	picolibc-riscv64-unknown-elf \
+	pipx \
+	pkg-config \
+	rsync \
+	socat \
+	stlink-tools \
+	strace \
+	tio \
+	tmux \
+	unzip \
+	usbutils \
+	vim \
+	wget \
+	xxd \
+	zip
 
 # shellcheck disable=SC2016,SC2089,SC2090
 daemon_args='--supervisor-url "http://$(ip route show 0.0.0.0/0 | cut -d" " -f3 | head -n1):3859"'
