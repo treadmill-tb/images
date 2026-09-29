@@ -32,7 +32,6 @@ apt-get install -y \
 	nano \
 	ninja-build \
 	nload \
-	openocd \
 	pciutils \
 	picocom \
 	picolibc-riscv64-unknown-elf \
@@ -50,6 +49,8 @@ apt-get install -y \
 	wget \
 	xxd \
 	zip
+
+"$TML_IMAGE_DIR/install-openocd.sh"
 
 daemon_args=''
 serial_consoles='ttyS0'

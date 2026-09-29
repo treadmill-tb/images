@@ -1,0 +1,1 @@
+../../../shared/openocd/install-openocd.sh

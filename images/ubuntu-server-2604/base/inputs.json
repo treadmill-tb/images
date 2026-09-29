@@ -10,6 +10,18 @@
     "hash_source": "vendor-sha256sums",
     "retrieved_at": "2026-09-09T00:00:00Z"
   },
+  "openocd": {
+    "version": "21f88d7815edfb7632548090934c51017604f450",
+    "url": "https://github.com/openocd-org/openocd/archive/21f88d7815edfb7632548090934c51017604f450.tar.gz",
+    "sha256": "978026426d7d2c6e631ad6aeef0b2e731e9c1f071137acf1ae513f52aa38250a",
+    "source": {
+      "datasource": "git-commits",
+      "repo": "openocd-org/openocd",
+      "branch": "master"
+    },
+    "hash_source": "computed",
+    "retrieved_at": "2026-09-29T00:00:00Z"
+  },
   "rustup_init": {
     "version": "1.29.0",
     "url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init",

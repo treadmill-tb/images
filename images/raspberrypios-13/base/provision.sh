@@ -43,7 +43,6 @@ apt-get install -y \
 	nano \
 	ninja-build \
 	nload \
-	openocd \
 	pciutils \
 	picocom \
 	picolibc-riscv64-unknown-elf \
@@ -61,6 +60,8 @@ apt-get install -y \
 	wget \
 	xxd \
 	zip
+
+"$TML_IMAGE_DIR/install-openocd.sh"
 
 # shellcheck disable=SC2016,SC2089,SC2090
 daemon_args='--supervisor-url "http://$(ip route show 0.0.0.0/0 | cut -d" " -f3 | head -n1):3859"'
