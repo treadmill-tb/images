@@ -26,6 +26,7 @@ After=network.target
 [Service]
 User=tml
 Group=tml
+EnvironmentFile=/etc/tml/user.env
 RuntimeDirectory=tml-code-server
 RuntimeDirectoryMode=0750
 ExecStart=/usr/bin/code-server --auth none --socket /run/tml-code-server/code-server.sock --socket-mode 0600 --disable-telemetry --disable-update-check --disable-workspace-trust /home/tml

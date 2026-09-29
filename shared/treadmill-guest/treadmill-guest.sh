@@ -64,6 +64,12 @@ DBUSCONF
 
 mkdir -p /etc/tml/services.d
 
+# Services and sshd start tml's processes without a login shell, so ~/.profile
+# never puts ~/.cargo/bin (rustup) or ~/.local/bin (pipx) on their PATH. Units
+# running as tml read this file; sshd_config.tml repeats the same value.
+tml_path=/home/tml/.cargo/bin:/home/tml/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+echo "PATH=$tml_path" >/etc/tml/user.env
+
 # The heredoc is unquoted so ${daemon_args} expands here while a
 # $(...) inside it stays literal for the unit's shell to evaluate at service
 # start. daemon_args must contain no single quote: the ExecStart body
@@ -121,6 +127,7 @@ After=network.target
 [Service]
 User=tml
 Group=tml
+EnvironmentFile=/etc/tml/user.env
 RuntimeDirectory=tml-ttyd
 RuntimeDirectoryMode=0750
 ExecStart=/usr/local/bin/ttyd --interface /run/tml-ttyd/ttyd.sock --writable tmux new-session -A -s tml
@@ -139,6 +146,9 @@ cat >/etc/tml/services.d/webterm.json <<'SERVICEDECL'
 SERVICEDECL
 
 sudo -u tml -H /opt/rustup-init -y --default-toolchain none --profile minimal
+# ~/.profile adds ~/.local/bin only if it exists at login, and pipx creates it
+# only on its first install.
+sudo -u tml mkdir -p /home/tml/.local/bin
 
 touch /firstboot-expandroot
 cat >/etc/systemd/system/firstboot-expandroot.service <<'SERVICE'
@@ -167,7 +177,7 @@ RemainAfterExit=true
 SERVICE
 systemctl enable ssh-generate-host-keys.service
 
-cat >/etc/ssh/sshd_config.tml <<'SSHDCONF'
+cat >/etc/ssh/sshd_config.tml <<SSHDCONF
 ListenAddress 127.0.0.1:2222
 PidFile none
 AllowUsers tml
@@ -177,6 +187,7 @@ PermitEmptyPasswords yes
 UsePAM no
 AcceptEnv LANG LC_*
 Subsystem sftp internal-sftp
+SetEnv PATH=$tml_path
 SSHDCONF
 
 cat >/etc/systemd/system/tml-sshd.service <<'SERVICE'

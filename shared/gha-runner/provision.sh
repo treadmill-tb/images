@@ -53,6 +53,7 @@ KillSignal=SIGINT
 TimeoutStopSec=5m
 User=tml
 Group=tml
+EnvironmentFile=/etc/tml/user.env
 WorkingDirectory=/opt/gh-actions-runner
 ExecStopPost=-+/bin/bash /run/tml/parameters/gh-actions-runner-exec-stop-post-sh
 
