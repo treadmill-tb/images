@@ -147,6 +147,12 @@ cat >/etc/tml/services.d/webterm.json <<'SERVICEDECL'
 SERVICEDECL
 
 sudo -u tml -H /opt/rustup-init -y --default-toolchain none --profile minimal
+# Default to the stable toolchain (lazily downloaded on first use):
+sudo -u tml sed -i \
+	'/^default_toolchain = /d; /^profile = /a default_toolchain = "stable"' \
+	/home/tml/.rustup/settings.toml
+grep -qx 'default_toolchain = "stable"' /home/tml/.rustup/settings.toml
+
 # ~/.profile adds ~/.local/bin only if it exists at login, and pipx creates it
 # only on its first install.
 sudo -u tml mkdir -p /home/tml/.local/bin
