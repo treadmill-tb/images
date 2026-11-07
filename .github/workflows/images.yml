@@ -13,6 +13,10 @@ on:
         description: 'Push the built image layouts to ghcr.io'
         type: boolean
         default: false
+      publish_to_treadmill:
+        description: 'Register pushed images with swb.treadmill.dev and roll the sets in publish.json forward (requires push_to_ghcr)'
+        type: boolean
+        default: true
   release:
     types: [published]
 
@@ -230,3 +234,37 @@ jobs:
     with:
       entry: ${{ toJSON(matrix) }}
       push: ${{ needs.plan.outputs.push == 'true' }}
+
+  # Register the pushed images with the swb.treadmill.dev switchboard instance
+  # and append new generations to the sets in publish.json, once every image job
+  # succeeded.
+  register:
+    needs: [plan, level-0, level-1, level-2, level-3, level-4, level-5, level-6, level-7, level-8, level-9]
+    if: >-
+      ${{ !cancelled() && !contains(needs.*.result, 'failure')
+          && needs.plan.outputs.push == 'true' && inputs.publish_to_treadmill }}
+
+    runs-on: ubuntu-latest
+
+    environment: swb-treadmill-dev-image-registration
+
+    concurrency:
+      group: swb-treadmill-dev-image-registration
+      cancel-in-progress: false
+
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Download the push records
+        uses: actions/download-artifact@v8
+        with:
+          pattern: published--*
+          path: ${{ runner.temp }}/published
+
+      - name: Publish to Treadmill
+        env:
+          TREADMILL_TOKEN: ${{ secrets.TREADMILL_TOKEN }}
+        run: ./tools/ci/publish.sh --records "$RUNNER_TEMP/published"

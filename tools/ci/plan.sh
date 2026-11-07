@@ -126,6 +126,22 @@ for dir in "${dirs[@]}"; do
 done
 
 if [ "$mode" = check ]; then
+	# publish.json: every set member must be an image we push to ghcr.io.
+	publish_json="$repo/publish.json"
+	jq -e '
+		(.switchboard | type) == "string" and (.registry | type) == "string"
+		and (.sets | type) == "object"
+		and all(.sets[]; type == "array" and length > 0 and all(.[];
+			(.image | type) == "string"
+			and (.platform_profile | type) == "string" and .platform_profile != ""
+			and (.predicate | type | IN("string", "null"))))
+	' "$publish_json" >/dev/null || die "publish.json is not valid"
+	while read -r image; do
+		[ -f "$repo/$image/image.json" ] || die "publish.json: $image is not an image"
+		[ "$(jq -r '.publish // "default"' "$repo/$image/image.json")" != "" ] ||
+			die "publish.json: $image is not published to ghcr.io"
+	done < <(jq -r '[.sets[][].image] | unique[]' "$publish_json")
+
 	echo "plan: ${#entries[@]} images OK" >&2
 	exit 0
 fi

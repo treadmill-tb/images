@@ -117,7 +117,26 @@ jobs:
           export CONTAINERS_REGISTRIES_CONF
 
           owner="$(printf '%s' "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')"
-          repo="ghcr.io/$owner/$(jq -r '.publish' <<<"$ENTRY")"
+          repository="$owner/$(jq -r '.publish' <<<"$ENTRY")"
           for tag in "$BUILD_TAG" "$BUILD_REVISION" latest; do
-            skopeo copy --all "oci:$RUNNER_TEMP/out" "docker://$repo:$tag"
+            skopeo copy --all --preserve-digests --digestfile "$RUNNER_TEMP/digest" \
+              "oci:$RUNNER_TEMP/out" "docker://ghcr.io/$repository:$tag"
           done
+
+          mkdir -p "$RUNNER_TEMP/published"
+          jq -n \
+            --arg image "$(jq -r '.image' <<<"$ENTRY")" \
+            --arg registry "$(jq -r '.registry' publish.json)" \
+            --arg repository "$repository" \
+            --arg digest "$(cat "$RUNNER_TEMP/digest")" \
+            '{$image, $registry, $repository, $digest}' \
+            > "$RUNNER_TEMP/published/record.json"
+          cat "$RUNNER_TEMP/published/record.json"
+
+      - name: Upload the push record
+        if: ${{ inputs.push && fromJSON(inputs.entry).publish != '' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: published--${{ fromJSON(inputs.entry).artifact }}
+          path: ${{ runner.temp }}/published/record.json
+          if-no-files-found: error

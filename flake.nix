@@ -88,7 +88,7 @@
                 ''
                   cd ${./.}
                   shellcheck -x --source-path=SCRIPTDIR \
-                    build/build-image.sh build/build-chain.sh tools/ci/plan.sh
+                    build/build-image.sh build/build-chain.sh tools/ci/plan.sh tools/ci/publish.sh
                   shellcheck --shell=sh shared/*/provision.sh \
                     shared/openocd/install-openocd.sh \
                     shared/treadmill-guest/treadmill-guest.sh images/*/base/provision.sh \
@@ -104,7 +104,7 @@
                   cd ${./.}
                   shfmt --diff --language-dialect bash --indent 0 \
                     build/build-image.sh build/build-chain.sh build/lib/*.sh \
-                    tools/ci/plan.sh
+                    tools/ci/plan.sh tools/ci/publish.sh
                   shfmt --diff --language-dialect posix --indent 0 \
                     shared/openocd/install-openocd.sh \
                     shared/*/provision.sh shared/treadmill-guest/treadmill-guest.sh \

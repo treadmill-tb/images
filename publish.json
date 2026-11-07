@@ -1,0 +1,30 @@
+{
+  "switchboard": "https://swb.treadmill.dev",
+  "registry": "ghcr.io:443",
+  "sets": {
+    "linux": [
+      {
+        "image": "images/ubuntu-server-2604/base",
+        "platform_profile": "q35-virtio-uefi",
+        "predicate": null
+      },
+      {
+        "image": "images/raspberrypios-13/base",
+        "platform_profile": "arm64-nbd-netboot",
+        "predicate": "host.platform.vendor == 'Raspberry Pi'"
+      }
+    ],
+    "linux-webide": [
+      {
+        "image": "images/ubuntu-server-2604/webide",
+        "platform_profile": "q35-virtio-uefi",
+        "predicate": null
+      },
+      {
+        "image": "images/raspberrypios-13/webide",
+        "platform_profile": "arm64-nbd-netboot",
+        "predicate": "host.platform.vendor == 'Raspberry Pi'"
+      }
+    ]
+  }
+}
