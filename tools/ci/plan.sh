@@ -50,8 +50,8 @@ artifact_of() { # <dir>
 
 runner_of() { # <arch>
 	case "$1" in
-	x86_64) echo ubuntu-latest ;;
-	aarch64) echo ubuntu-24.04-arm ;;
+	x86_64) echo ubuntu-26.04 ;;
+	aarch64) echo ubuntu-26.04-arm ;;
 	*) die "no CI runner for arch: $1" ;;
 	esac
 }
