@@ -1,37 +1,37 @@
 {
   "vendor_image": {
-    "version": "26.04-release-20260612",
-    "url": "https://cloud-images.ubuntu.com/releases/26.04/release-20260612/ubuntu-26.04-server-cloudimg-amd64.img",
-    "sha256": "0c9fb915bab0b36b361d3bf8aeae2115dda19d81a306656964de048033481670",
+    "version": "26.04-release-20261016",
+    "url": "https://cloud-images.ubuntu.com/releases/26.04/release-20261016/ubuntu-26.04-server-cloudimg-amd64.img",
+    "sha256": "5645d0318ad21f643ebb1ac4567514620e9893380b07b0201fda163baa5b7eb5",
     "source": {
       "datasource": "ubuntu-cloud-images",
       "channel": "releases/26.04"
     },
     "hash_source": "vendor-sha256sums",
-    "retrieved_at": "2026-09-09T00:00:00Z"
+    "retrieved_at": "2026-11-07T00:00:00Z"
   },
   "openocd": {
-    "version": "21f88d7815edfb7632548090934c51017604f450",
-    "url": "https://github.com/openocd-org/openocd/archive/21f88d7815edfb7632548090934c51017604f450.tar.gz",
-    "sha256": "978026426d7d2c6e631ad6aeef0b2e731e9c1f071137acf1ae513f52aa38250a",
+    "version": "9f2d8762b3a75b4d7b2155affcf3d8bb8eb8849a",
+    "url": "https://github.com/openocd-org/openocd/archive/9f2d8762b3a75b4d7b2155affcf3d8bb8eb8849a.tar.gz",
+    "sha256": "0aaf5212402c392869c0a35319f0b6834ea041b7921f80558cacb96ce83456d5",
     "source": {
       "datasource": "git-commits",
       "repo": "openocd-org/openocd",
       "branch": "master"
     },
     "hash_source": "computed",
-    "retrieved_at": "2026-09-29T00:00:00Z"
+    "retrieved_at": "2026-11-07T00:00:00Z"
   },
   "rustup_init": {
-    "version": "1.29.0",
-    "url": "https://static.rust-lang.org/rustup/archive/1.29.0/x86_64-unknown-linux-gnu/rustup-init",
-    "sha256": "4acc9acc76d5079515b46346a485974457b5a79893cfb01112423c89aeb5aa10",
+    "version": "1.29.3",
+    "url": "https://static.rust-lang.org/rustup/archive/1.29.3/x86_64-unknown-linux-gnu/rustup-init",
+    "sha256": "b1c8cb14e30889e7e2999e6b69e62d9e9b9ffc0f4df8180564d306d9680e6c55",
     "source": {
       "datasource": "rustup-archive",
       "target": "x86_64-unknown-linux-gnu"
     },
     "hash_source": "vendor-sha256sums",
-    "retrieved_at": "2026-09-09T00:00:00Z"
+    "retrieved_at": "2026-11-07T00:00:00Z"
   },
   "ttyd": {
     "version": "1.7.7",

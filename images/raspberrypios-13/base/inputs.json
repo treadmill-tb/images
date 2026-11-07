@@ -1,37 +1,37 @@
 {
   "vendor_image": {
-    "version": "2026-04-21",
-    "url": "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-04-21/2026-04-21-raspios-trixie-arm64-lite.img.xz",
-    "sha256": "4cd31df026fd82243805a326dc0cafd7383f7e3d30c9413e7044d507aae281e2",
+    "version": "2026-10-06",
+    "url": "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2026-10-06/2026-10-06-raspios-trixie-arm64-lite.img.xz",
+    "sha256": "483db18a48da399b5b7022ffae9a07bc6d99daab30e593aedac09b69ff422843",
     "source": {
       "datasource": "raspberrypi-images",
       "channel": "raspios_lite_arm64"
     },
     "hash_source": "vendor-sha256sums",
-    "retrieved_at": "2026-09-09T00:00:00Z"
+    "retrieved_at": "2026-11-07T00:00:00Z"
   },
   "openocd": {
-    "version": "21f88d7815edfb7632548090934c51017604f450",
-    "url": "https://github.com/openocd-org/openocd/archive/21f88d7815edfb7632548090934c51017604f450.tar.gz",
-    "sha256": "978026426d7d2c6e631ad6aeef0b2e731e9c1f071137acf1ae513f52aa38250a",
+    "version": "9f2d8762b3a75b4d7b2155affcf3d8bb8eb8849a",
+    "url": "https://github.com/openocd-org/openocd/archive/9f2d8762b3a75b4d7b2155affcf3d8bb8eb8849a.tar.gz",
+    "sha256": "0aaf5212402c392869c0a35319f0b6834ea041b7921f80558cacb96ce83456d5",
     "source": {
       "datasource": "git-commits",
       "repo": "openocd-org/openocd",
       "branch": "master"
     },
     "hash_source": "computed",
-    "retrieved_at": "2026-09-29T00:00:00Z"
+    "retrieved_at": "2026-11-07T00:00:00Z"
   },
   "rustup_init": {
-    "version": "1.29.0",
-    "url": "https://static.rust-lang.org/rustup/archive/1.29.0/aarch64-unknown-linux-gnu/rustup-init",
-    "sha256": "9732d6c5e2a098d3521fca8145d826ae0aaa067ef2385ead08e6feac88fa5792",
+    "version": "1.29.3",
+    "url": "https://static.rust-lang.org/rustup/archive/1.29.3/aarch64-unknown-linux-gnu/rustup-init",
+    "sha256": "9f608c142e0e38a78957d0661ba1dfaf0b6fb37184cfaa4b9a0aa57af6184282",
     "source": {
       "datasource": "rustup-archive",
       "target": "aarch64-unknown-linux-gnu"
     },
     "hash_source": "vendor-sha256sums",
-    "retrieved_at": "2026-09-09T00:00:00Z"
+    "retrieved_at": "2026-11-07T00:00:00Z"
   },
   "ttyd": {
     "version": "1.7.7",
