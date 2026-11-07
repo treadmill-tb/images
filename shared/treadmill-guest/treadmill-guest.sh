@@ -130,6 +130,7 @@ Group=tml
 EnvironmentFile=/etc/tml/user.env
 RuntimeDirectory=tml-ttyd
 RuntimeDirectoryMode=0750
+WorkingDirectory=/home/tml
 ExecStart=/usr/local/bin/ttyd --interface /run/tml-ttyd/ttyd.sock --writable tmux new-session -A -s tml
 Restart=always
 RestartSec=5s
