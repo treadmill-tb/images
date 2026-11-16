@@ -1,0 +1,13 @@
+{
+  "vendor_image": {
+    "version": "26.04-release-20261016",
+    "url": "https://cloud-images.ubuntu.com/releases/26.04/release-20261016/ubuntu-26.04-server-cloudimg-amd64.img",
+    "sha256": "5645d0318ad21f643ebb1ac4567514620e9893380b07b0201fda163baa5b7eb5",
+    "source": {
+      "datasource": "ubuntu-cloud-images",
+      "channel": "releases/26.04"
+    },
+    "hash_source": "vendor-sha256sums",
+    "retrieved_at": "2026-11-07T00:00:00Z"
+  }
+}

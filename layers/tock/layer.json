@@ -1,0 +1,5 @@
+{
+  "title": "{host_title} with the Tock toolchain",
+  "description": "{host_description}, with the Tock development toolchain.",
+  "publish": "{host}"
+}

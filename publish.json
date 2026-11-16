@@ -4,24 +4,24 @@
   "sets": {
     "linux": [
       {
-        "image": "images/ubuntu-server-2604/base",
+        "image": "ubuntu-server-2604/tock",
         "platform_profile": "q35-virtio-uefi",
         "predicate": null
       },
       {
-        "image": "images/raspberrypios-13/base",
+        "image": "raspberrypios-13/tock",
         "platform_profile": "arm64-nbd-netboot",
         "predicate": "host.platform.vendor == 'Raspberry Pi'"
       }
     ],
     "linux-webide": [
       {
-        "image": "images/ubuntu-server-2604/webide",
+        "image": "ubuntu-server-2604/webide",
         "platform_profile": "q35-virtio-uefi",
         "predicate": null
       },
       {
-        "image": "images/raspberrypios-13/webide",
+        "image": "raspberrypios-13/webide",
         "platform_profile": "arm64-nbd-netboot",
         "predicate": "host.platform.vendor == 'Raspberry Pi'"
       }

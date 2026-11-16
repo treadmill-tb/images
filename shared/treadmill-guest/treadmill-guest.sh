@@ -6,8 +6,6 @@ set -eu
 : "${TML_ARCH:?}"
 : "${daemon_args?set daemon_args before running this layer}"
 : "${serial_consoles:?set serial_consoles before running this layer}"
-: "${rustup_init_url:?}"
-: "${rustup_init_sha256:?}"
 : "${ttyd_url:?}"
 : "${ttyd_sha256:?}"
 : "${websocat_url:?}"
@@ -29,9 +27,6 @@ chmod 0755 /usr/local/bin/ttyd
 fetch_verified "$websocat_url" "$websocat_sha256" /usr/local/bin/websocat
 chmod 0755 /usr/local/bin/websocat
 
-fetch_verified "$rustup_init_url" "$rustup_init_sha256" /opt/rustup-init
-chmod 0755 /opt/rustup-init
-
 install -m 0755 "$TML_IMAGE_DIR/expandroot.sh" /opt/expandroot.sh
 
 # Some base images ship a default user at UID 1000; free the slot before
@@ -42,6 +37,8 @@ if [ -n "$existing_uid1000" ] && [ "$existing_uid1000" != tml ]; then
 fi
 useradd -m -u 1000 -s /bin/bash tml
 passwd -d tml
+# A base image that ships no USB tooling may not have plugdev yet.
+getent group plugdev >/dev/null || groupadd plugdev
 usermod -a -G plugdev tml
 usermod -a -G tty tml
 echo "tml ALL=(ALL) NOPASSWD: ALL" >/etc/sudoers.d/010_tml-nopasswd
@@ -66,7 +63,8 @@ mkdir -p /etc/tml/services.d
 
 # Services and sshd start tml's processes without a login shell, so ~/.profile
 # never puts ~/.cargo/bin (rustup) or ~/.local/bin (pipx) on their PATH. Units
-# running as tml read this file; sshd_config.tml repeats the same value.
+# running as tml read this file; sshd_config.tml repeats the same value. Both
+# directories are a layer's to create, and absent entries are harmless.
 tml_path=/home/tml/.cargo/bin:/home/tml/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 echo "PATH=$tml_path" >/etc/tml/user.env
 
@@ -145,17 +143,6 @@ cat >/etc/tml/services.d/webterm.json <<'SERVICEDECL'
 	"upstream": "unix//run/tml-ttyd/ttyd.sock"
 }
 SERVICEDECL
-
-sudo -u tml -H /opt/rustup-init -y --default-toolchain none --profile minimal
-# Default to the stable toolchain (lazily downloaded on first use):
-sudo -u tml sed -i \
-	'/^default_toolchain = /d; /^profile = /a default_toolchain = "stable"' \
-	/home/tml/.rustup/settings.toml
-grep -qx 'default_toolchain = "stable"' /home/tml/.rustup/settings.toml
-
-# ~/.profile adds ~/.local/bin only if it exists at login, and pipx creates it
-# only on its first install.
-sudo -u tml mkdir -p /home/tml/.local/bin
 
 touch /firstboot-expandroot
 cat >/etc/systemd/system/firstboot-expandroot.service <<'SERVICE'

@@ -90,18 +90,24 @@ qemu_nbd="$(command -v qemu-nbd)"
 . "$here/lib/oci.sh"
 
 image_dir="$(cd "$image_dir" && pwd)"
-name="$(basename "$(dirname "$image_dir")")/$(basename "$image_dir")"
 
 img_title="" img_arch="" img_type="" img_base=""
-img_version="" img_description="" img_grow=""
+img_version="" img_description="" img_grow="" img_name=""
 
 meta_env="$(jq -er '
 	def req($k): .[$k] // error("missing \($k)");
 	@sh "img_title=\(req("title")) img_arch=\(req("arch")) img_type=\(req("type"))
 	     img_base=\(.base // "") img_version=\(.version // "")
-	     img_description=\(.description // "") img_grow=\(.grow // "")"
+	     img_description=\(.description // "") img_grow=\(.grow // "")
+	     img_name=\(.name // "")"
 ' "$image_dir/image.json")" || die "$image_dir/image.json did not validate"
 eval "$meta_env"
+
+# A resolved image is built from a scratch directory, so it carries the name
+# it is known by; anything else is named after where it sits.
+name="$img_name"
+[ -n "$name" ] ||
+	name="$(basename "$(dirname "$image_dir")")/$(basename "$image_dir")"
 
 # A per-image summary takes precedence over legacy inline metadata.
 if [ -f "$image_dir/description.txt" ]; then
@@ -126,7 +132,8 @@ grow_bytes=""
 
 host_arch="$(uname -m)"
 if [ "$img_arch" != "$host_arch" ]; then
-	[ -e "/proc/sys/fs/binfmt_misc/qemu-$img_arch" ] || die "\
+	[ -e "/proc/sys/fs/binfmt_misc/qemu-$img_arch" ] ||
+		[ -e "/proc/sys/fs/binfmt_misc/$img_arch-linux" ] || die "\
 $name targets $img_arch but this host is $host_arch, and no binfmt_misc
 handler for qemu-$img_arch is registered. Register one, e.g.
 

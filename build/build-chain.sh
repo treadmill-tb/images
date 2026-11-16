@@ -2,6 +2,7 @@
 set -euo pipefail
 
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+repo="$(cd "$here/.." && pwd)"
 
 die() {
 	echo "build-chain: $*" >&2
@@ -10,18 +11,18 @@ die() {
 
 usage() {
 	cat >&2 <<-USAGE
-		usage: build-chain.sh --image <dir> -o <out-layout>
+		usage: build-chain.sh --image <coord> -o <out-layout>
 		                      [--cache <dir>] [--rebuild]
 		                      [--payload <path>]... [--image-util <path>]
 
-		Follow "base" down to an image that takes no lower layer. Then build
-		every link that is not already in the cache, and leave the head layout
-		at -o.
+		Follow the stack of <coord> down to the host kind's root image. Then
+		build every link that is not already in the cache, and leave the head
+		layout at -o.
 	USAGE
 	exit 2
 }
 
-image_dir=""
+coord=""
 out=""
 cache=""
 rebuild=no
@@ -30,7 +31,7 @@ passthrough=()
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--image)
-		image_dir="$2"
+		coord="$2"
 		shift 2
 		;;
 	-o | --out)
@@ -58,43 +59,40 @@ while [ $# -gt 0 ]; do
 	esac
 done
 
-[ -n "$image_dir" ] || die "missing --image <dir>"
+[ -n "$coord" ] || die "missing --image <coord>"
 [ -n "$out" ] || die "missing -o <out-layout>"
-[ -d "$image_dir" ] || die "no such image directory: $image_dir"
+
+images="$repo/tools/images.sh"
 
 chain=()
 lower_ref=""
-dir="$(cd "$image_dir" && pwd)"
+link="$coord"
 while :; do
-	chain=("$dir" ${chain[@]+"${chain[@]}"})
-	[ "${#chain[@]}" -le 16 ] || die "base chain too deep or cyclic at $image_dir"
-	base="$(jq -er '.base // ""' "$dir/image.json")" ||
-		die "$dir/image.json did not validate"
-	case "$base" in
-	./* | ../*)
-		dir="$(cd "$dir/$base" 2>/dev/null && pwd)" ||
-			die "$dir/image.json: no such base: $base"
-		;;
-	'') break ;;
-	*)
-		lower_ref="$base"
-		break
-		;;
-	esac
+	info="$("$images" meta "$link")" || die "no such image: $link"
+	chain=("$info" ${chain[@]+"${chain[@]}"})
+	[ "${#chain[@]}" -le 16 ] || die "stack too deep or cyclic at $coord"
+	lower_ref="$(jq -r '.lower_ref' <<<"$info")"
+	link="$(jq -r '.lower' <<<"$info")"
+	[ -n "$link" ] || break
 done
 
 cache="${cache:-${TML_IMAGE_CACHE:-.image-cache}}"
 mkdir -p "$cache"
 
+work="$(mktemp -d "${TMPDIR:-/tmp}/tml-chain-XXXXXX")"
+trap 'rm -rf "$work"' EXIT
+
 lower=""
-for dir in "${chain[@]}"; do
-	layout="$cache/$(basename "$(dirname "$dir")")--$(basename "$dir")"
+for info in "${chain[@]}"; do
+	link="$(jq -r '.coord' <<<"$info")"
+	layout="$cache/$(jq -r '.artifact' <<<"$info")"
 
 	if [ "$rebuild" = no ] && [ -f "$layout/index.json" ]; then
 		echo "build-chain: reusing $layout" >&2
 	else
 		rm -rf "$layout"
-		args=(--image "$dir" -o "$layout")
+		"$images" resolve "$link" --out "$work/image"
+		args=(--image "$work/image" -o "$layout")
 		if [ -n "$lower" ]; then
 			args+=(--lower "$lower")
 		elif [ -n "$lower_ref" ]; then
@@ -108,4 +106,4 @@ done
 rm -rf "$out"
 mkdir -p "$(dirname "$out")"
 cp -a "$lower" "$out"
-echo "build-chain: $image_dir -> $out (OK)" >&2
+echo "build-chain: $coord -> $out (OK)" >&2
