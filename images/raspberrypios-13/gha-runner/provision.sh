@@ -1,1 +1,0 @@
-../../../shared/gha-runner/provision.sh

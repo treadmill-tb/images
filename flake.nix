@@ -88,13 +88,14 @@
                 ''
                   cd ${./.}
                   shellcheck -x --source-path=SCRIPTDIR \
-                    build/build-image.sh build/build-chain.sh tools/ci/plan.sh tools/ci/publish.sh
-                  shellcheck --shell=sh shared/*/provision.sh \
+                    build/build-image.sh build/build-chain.sh tools/images.sh \
+                    tools/ci/plan.sh tools/ci/publish.sh
+                  shellcheck --shell=sh images/*/provision.sh layers/*/provision.sh \
                     shared/openocd/install-openocd.sh \
-                    shared/treadmill-guest/treadmill-guest.sh images/*/base/provision.sh \
+                    shared/treadmill-guest/treadmill-guest.sh \
                     build/guest/cleanup.sh
                   shellcheck shared/treadmill-guest/expandroot.sh \
-                    shared/gha-runner/install-gh-actions-runner.sh
+                    layers/gha-runner/install-gh-actions-runner.sh
                   touch $out
                 '';
 
@@ -104,11 +105,12 @@
                   cd ${./.}
                   shfmt --diff --language-dialect bash --indent 0 \
                     build/build-image.sh build/build-chain.sh build/lib/*.sh \
-                    tools/ci/plan.sh tools/ci/publish.sh
+                    tools/images.sh tools/ci/plan.sh tools/ci/publish.sh
                   shfmt --diff --language-dialect posix --indent 0 \
                     shared/openocd/install-openocd.sh \
-                    shared/*/provision.sh shared/treadmill-guest/treadmill-guest.sh \
-                    images/*/base/provision.sh build/guest/cleanup.sh
+                    shared/treadmill-guest/treadmill-guest.sh \
+                    images/*/provision.sh layers/*/provision.sh \
+                    build/guest/cleanup.sh
                   touch $out
                 '';
           };

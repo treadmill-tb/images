@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       images:
-        description: 'Image directories to build (space separated, empty for all)'
+        description: 'Image coordinates to build, e.g. "ubuntu-server-2604 ubuntu-server-2604/webide" (space separated, empty for all)'
         type: string
         default: ''
       push_to_ghcr:
@@ -43,9 +43,9 @@ jobs:
           skipPush: true
       - run: nix flake check --print-build-logs
 
-  # One job per image, bucketed by depth in the base graph. Adding an image is a
-  # new directory, not an edit here; plan.sh fails if one sits deeper than the
-  # ladder below, which Actions cannot template.
+  # One job per image, bucketed by depth in the stack. Adding a host kind or a
+  # layer is a new directory, not an edit here; plan.sh fails if an image sits
+  # deeper than the ladder below, which Actions cannot template.
   plan:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
