@@ -4,6 +4,6 @@
   "arch": "aarch64",
   "type": "sd",
   "grow": "6G",
-  "publish": "raspberrypios-13",
-  "include": ["shared/treadmill-guest", "shared/openocd"]
+  "publish": "raspberrypios-13-minimal",
+  "include": ["shared/treadmill-guest"]
 }

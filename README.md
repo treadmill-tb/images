@@ -14,6 +14,19 @@ pre-defined host kinds are:
 - Ubuntu Server 26.04, for Treadmill virtual machines (`x86_64`, a `disk`)
 - Raspberry Pi OS 13, for NBD-netbooted boards (`aarch64`, an `sd` card)
 
+and the pre-defined layers are:
+
+- `tock`, the embedded development toolchain: ARM and RISC-V GCC, OpenOCD built
+  from a pinned upstream commit, `rustup`, and the usual debugging and flashing
+  tools
+- `webide`, the code-server Web IDE
+- `gha-runner`, a self-registering GitHub Actions runner
+
+A host kind's root image carries only what the Treadmill API needs to drive a
+guest, so it is a usable starting point for an image that wants none of the
+above. It publishes as `<host>-minimal`; `<host>` is the `tock` image, which is
+what that repository has always held.
+
 Images are addressed by a **coordinate**: `<host>` for a host kind's root image,
 `<host>/<layer>` for a layer applied to it — `ubuntu-server-2604`,
 `raspberrypios-13/webide`. A layer names the layer it stacks on, so a coordinate

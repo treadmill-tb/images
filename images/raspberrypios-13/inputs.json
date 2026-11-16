@@ -9,50 +9,5 @@
     },
     "hash_source": "vendor-sha256sums",
     "retrieved_at": "2026-11-07T00:00:00Z"
-  },
-  "openocd": {
-    "version": "9f2d8762b3a75b4d7b2155affcf3d8bb8eb8849a",
-    "url": "https://github.com/openocd-org/openocd/archive/9f2d8762b3a75b4d7b2155affcf3d8bb8eb8849a.tar.gz",
-    "sha256": "0aaf5212402c392869c0a35319f0b6834ea041b7921f80558cacb96ce83456d5",
-    "source": {
-      "datasource": "git-commits",
-      "repo": "openocd-org/openocd",
-      "branch": "master"
-    },
-    "hash_source": "computed",
-    "retrieved_at": "2026-11-07T00:00:00Z"
-  },
-  "rustup_init": {
-    "version": "1.29.3",
-    "url": "https://static.rust-lang.org/rustup/archive/1.29.3/aarch64-unknown-linux-gnu/rustup-init",
-    "sha256": "9f608c142e0e38a78957d0661ba1dfaf0b6fb37184cfaa4b9a0aa57af6184282",
-    "source": {
-      "datasource": "rustup-archive",
-      "target": "aarch64-unknown-linux-gnu"
-    },
-    "hash_source": "vendor-sha256sums",
-    "retrieved_at": "2026-11-07T00:00:00Z"
-  },
-  "ttyd": {
-    "version": "1.7.7",
-    "url": "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64",
-    "sha256": "b38acadd89d1d396a0f5649aa52c539edbad07f4bc7348b27b4f4b7219dd4165",
-    "source": {
-      "datasource": "github-releases",
-      "repo": "tsl0922/ttyd"
-    },
-    "hash_source": "computed",
-    "retrieved_at": "2026-09-09T00:00:00Z"
-  },
-  "websocat": {
-    "version": "1.14.1",
-    "url": "https://github.com/vi/websocat/releases/download/v1.14.1/websocat.aarch64-unknown-linux-musl",
-    "sha256": "711a69576a2ff473fb01a90ffafb571c2ed019e55479d7ae71b12c2eadeb7011",
-    "source": {
-      "datasource": "github-releases",
-      "repo": "vi/websocat"
-    },
-    "hash_source": "computed",
-    "retrieved_at": "2026-09-09T00:00:00Z"
   }
 }

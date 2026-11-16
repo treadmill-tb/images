@@ -91,7 +91,7 @@
                     build/build-image.sh build/build-chain.sh tools/images.sh \
                     tools/ci/plan.sh tools/ci/publish.sh
                   shellcheck --shell=sh images/*/provision.sh layers/*/provision.sh \
-                    shared/openocd/install-openocd.sh \
+                    layers/tock/install-openocd.sh \
                     shared/treadmill-guest/treadmill-guest.sh \
                     build/guest/cleanup.sh
                   shellcheck shared/treadmill-guest/expandroot.sh \
@@ -107,7 +107,7 @@
                     build/build-image.sh build/build-chain.sh build/lib/*.sh \
                     tools/images.sh tools/ci/plan.sh tools/ci/publish.sh
                   shfmt --diff --language-dialect posix --indent 0 \
-                    shared/openocd/install-openocd.sh \
+                    layers/tock/install-openocd.sh \
                     shared/treadmill-guest/treadmill-guest.sh \
                     images/*/provision.sh layers/*/provision.sh \
                     build/guest/cleanup.sh

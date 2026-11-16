@@ -1,56 +1,17 @@
 #!/bin/sh
 set -eu
 
+# Only what the Treadmill guest runtime needs. Everything a job wants to build
+# or flash with comes from a layer.
+#
+# growpart: expandroot.sh grows the root partition on first boot, and the
+# cloud-init purge below is what would otherwise take cloud-guest-utils with it.
 apt-get install -y \
-	bc \
-	build-essential \
 	ca-certificates \
-	cmake \
+	cloud-guest-utils \
 	curl \
 	dbus \
-	device-tree-compiler \
-	dfu-util \
-	file \
-	gcc-arm-none-eabi \
-	gcc-riscv64-unknown-elf \
-	gdb-multiarch \
-	git \
-	gnupg \
-	gpg \
-	gpiod \
-	htop \
-	i2c-tools \
-	jq \
-	libnewlib-arm-none-eabi \
-	libstdc++-arm-none-eabi-newlib \
-	libudev-dev \
-	libusb-1.0-0-dev \
-	libzmq3-dev \
-	lsof \
-	minicom \
-	mtr-tiny \
-	nano \
-	ninja-build \
-	nload \
-	pciutils \
-	picocom \
-	picolibc-riscv64-unknown-elf \
-	pipx \
-	pkg-config \
-	rsync \
-	socat \
-	stlink-tools \
-	strace \
-	tio \
-	tmux \
-	unzip \
-	usbutils \
-	vim \
-	wget \
-	xxd \
-	zip
-
-"$TML_IMAGE_DIR/install-openocd.sh"
+	tmux
 
 daemon_args=''
 serial_consoles='ttyS0'

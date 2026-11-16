@@ -4,6 +4,6 @@
   "arch": "x86_64",
   "type": "disk",
   "grow": "6G",
-  "publish": "ubuntu-server-2604",
-  "include": ["shared/treadmill-guest", "shared/openocd"]
+  "publish": "ubuntu-server-2604-minimal",
+  "include": ["shared/treadmill-guest"]
 }

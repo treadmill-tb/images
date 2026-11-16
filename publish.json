@@ -4,12 +4,12 @@
   "sets": {
     "linux": [
       {
-        "image": "ubuntu-server-2604",
+        "image": "ubuntu-server-2604/tock",
         "platform_profile": "q35-virtio-uefi",
         "predicate": null
       },
       {
-        "image": "raspberrypios-13",
+        "image": "raspberrypios-13/tock",
         "platform_profile": "arm64-nbd-netboot",
         "predicate": "host.platform.vendor == 'Raspberry Pi'"
       }
